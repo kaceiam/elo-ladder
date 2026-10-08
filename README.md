@@ -1,6 +1,6 @@
 # Elo Ladder
 
-**Play the bots now:** https://kaceiam.github.io/elo-ladder/
+**Play now:** https://kaceiam.github.io/elo-ladder/ — bots, or invite a friend anywhere with a link (`friend.html`).
 
 Chess with Elo ratings. Play rated games online against random opponents or
 friends, or practice against seven bots from 400 to 2800.

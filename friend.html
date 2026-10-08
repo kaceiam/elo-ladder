@@ -1,0 +1,582 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Play a Friend</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#14161b">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<main>
+  <div class="row" style="justify-content: space-between">
+    <h1>Play a Friend</h1>
+    <div class="row">
+      <a class="btn" href="index.html">Play bots</a>
+    </div>
+  </div>
+
+  <!-- Start: name + create an invite -->
+  <div id="setup" hidden>
+    <div class="grid2">
+      <section>
+        <div class="me">
+          <div>
+            <div class="dim">Your friend-game rating</div>
+            <div class="elo" id="myElo">1200</div>
+          </div>
+          <div>
+            <span class="rank" id="myRank"></span>
+            <div class="dim" id="myGames" style="margin-top: 4px"></div>
+          </div>
+        </div>
+        <div class="row" style="margin-top: 12px">
+          <input type="text" id="myName" placeholder="Your name" maxlength="20">
+        </div>
+      </section>
+      <section>
+        <h2>Invite a friend anywhere</h2>
+        <div class="row">
+          <select id="tc" style="flex: 0 0 auto">
+            <option value="3+2">3 + 2</option>
+            <option value="5+0">5 min</option>
+            <option value="10+0" selected>10 min</option>
+            <option value="15+10">15 + 10</option>
+            <option value="none">No clock</option>
+          </select>
+          <select id="color" style="flex: 0 0 auto">
+            <option value="random">Random color</option>
+            <option value="w">I play White</option>
+            <option value="b">I play Black</option>
+          </select>
+          <button class="primary" id="create">Create invite link</button>
+        </div>
+        <div class="dim" style="margin-top: 8px">Send the link to your friend. You connect straight to each other — they can be anywhere.</div>
+        <div class="err" id="setupErr"></div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Host: waiting for the friend -->
+  <section id="invite" hidden>
+    <h2>Send this to your friend</h2>
+    <div class="phone">
+      <a id="qrLink" class="qr" target="_blank" rel="noopener"></a>
+      <div>
+        <div class="row">
+          <input type="text" id="inviteLink" readonly>
+          <button class="primary" id="shareLink">Share</button>
+          <button id="copyLink">Copy</button>
+        </div>
+        <p><b class="thinking">Waiting for your friend to open the link</b></p>
+        <p class="dim">Keep this page open until they join. They can text it, scan the code, or paste the link into any browser.</p>
+        <button id="cancelInvite">Cancel</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Guest: joining from a link -->
+  <section id="join" hidden>
+    <h2>You've been invited to a game</h2>
+    <form id="joinForm" class="row">
+      <input type="text" id="joinName" placeholder="Your name" maxlength="20" required>
+      <button class="primary">Join game</button>
+    </form>
+    <p class="dim" id="joinStatus"></p>
+    <div class="err" id="joinErr"></div>
+  </section>
+
+  <section id="play" hidden>
+    <div class="game">
+      <div class="boardcol">
+        <div class="player" id="topBar"></div>
+        <div class="board" id="board"></div>
+        <div class="player" id="bottomBar"></div>
+      </div>
+      <div class="side">
+        <div class="status" id="status"></div>
+        <div class="row" id="drawRow" hidden>
+          <span id="drawText"></span>
+          <button class="primary" id="acceptDraw">Accept</button>
+          <button id="declineDraw">Decline</button>
+        </div>
+        <div class="moves" id="moves"></div>
+        <div class="row">
+          <button id="offerDraw">Offer draw</button>
+          <button id="resign">Resign</button>
+          <button class="primary" id="rematch" hidden>Rematch</button>
+          <button id="newInvite" hidden>New invite</button>
+        </div>
+        <div class="chat" id="chat"></div>
+        <form class="row" id="chatForm">
+          <input type="text" id="chatText" placeholder="Say something…" maxlength="300" autocomplete="off">
+          <button>Send</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Your friend games</h2>
+    <table>
+      <thead><tr><th>Opponent</th><th>Color</th><th>Result</th><th class="num">Change</th><th class="num">Rating</th></tr></thead>
+      <tbody id="history"></tbody>
+    </table>
+  </section>
+</main>
+
+<script src="pwa.js"></script>
+<script src="vendor/chess.min.js"></script>
+<script src="elo.js"></script>
+<script src="board.js"></script>
+<script src="vendor/qrcode.min.js"></script>
+<script src="vendor/peerjs.min.js"></script>
+<script>
+  // Two browsers connect directly (WebRTC via PeerJS's free public broker),
+  // so this works on any static host such as GitHub Pages. The inviter is the
+  // "host"; both sides check every move with chess.js. Each player's rating
+  // lives in their own browser.
+
+  const PROFILE_KEY = "elo-friend-profile";
+  const PEER_PREFIX = "eloladder-";
+  const TIME_CONTROLS = { "3+2": [3, 2], "5+0": [5, 0], "10+0": [10, 0], "15+10": [15, 10], none: [0, 0] };
+  const TC_LABEL = { "3+2": "3 + 2", "5+0": "5 min", "10+0": "10 min", "15+10": "15 + 10", none: "No clock" };
+  const ABANDON_MS = 60_000;
+
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+  const fmt = (n) => `<span class="${n >= 0 ? "up" : "down"}">${n >= 0 ? "+" : ""}${n.toFixed(1)}</span>`;
+  const rankBadge = (elo) => `<span class="rank ${rankOf(elo)}">${rankOf(elo)}</span>`;
+
+  let profile = { name: "", elo: 1200, games: 0, history: [] };
+  try { profile = { ...profile, ...JSON.parse(localStorage.getItem(PROFILE_KEY)) }; } catch {}
+  const saveProfile = () => { try { localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); } catch {} };
+
+  let peer = null, conn = null, role = null, inviteCode = null;
+  let G = null; // current game
+  let selected = null, lostAt = null;
+
+  function show(id) {
+    for (const s of ["setup", "invite", "join", "play"]) $(s).hidden = s !== id;
+  }
+
+  // ---------- profile ----------
+
+  function renderProfile() {
+    $("myElo").textContent = Math.round(profile.elo);
+    $("myRank").textContent = rankOf(profile.elo);
+    $("myRank").className = `rank ${rankOf(profile.elo)}`;
+    $("myGames").textContent = `${profile.games} friend games`;
+    $("myName").value = profile.name;
+    const word = { 1: "Won", 0.5: "Draw", 0: "Lost" };
+    $("history").innerHTML = profile.history.length ? profile.history.map((h) => `
+      <tr><td>${esc(h.opp)} <span class="dim">(${h.oppElo})</span></td><td>${h.color === "w" ? "White" : "Black"}</td>
+      <td>${word[h.result]} <span class="dim">· ${esc(h.reason)}</span></td>
+      <td class="num">${fmt(h.change)}</td><td class="num">${Math.round(h.after)}</td></tr>`).join("")
+      : `<tr><td colspan="5" class="empty">No friend games yet.</td></tr>`;
+  }
+
+  function setName(name) {
+    profile.name = String(name || "").trim().slice(0, 20) || `Guest${Math.floor(1000 + Math.random() * 9000)}`;
+    saveProfile();
+  }
+  $("myName").addEventListener("change", () => { setName($("myName").value); renderProfile(); });
+
+  // ---------- connection ----------
+
+  function send(msg) { if (conn && conn.open) conn.send(msg); }
+
+  function wire(c) {
+    conn = c;
+    c.on("data", onMessage);
+    c.on("close", () => { if (conn === c) onDisconnect(); });
+    c.on("error", () => { if (conn === c) onDisconnect(); });
+  }
+
+  function onDisconnect() {
+    conn = null;
+    if (G && G.status === "playing") {
+      lostAt = Date.now();
+      renderGame();
+    }
+  }
+
+  // ---------- host ----------
+
+  const newCode = () => Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => "abcdefghjkmnpqrstuvwxyz23456789"[b % 31]).join("");
+
+  function createInvite() {
+    setName($("myName").value);
+    renderProfile();
+    $("setupErr").textContent = "";
+    role = "host";
+    inviteCode = newCode();
+    const tc = $("tc").value, color = $("color").value;
+    peer = new Peer(PEER_PREFIX + inviteCode);
+    $("create").disabled = true;
+    peer.on("open", () => {
+      $("create").disabled = false;
+      const link = `${location.origin}${location.pathname}#${inviteCode}`;
+      $("inviteLink").value = link;
+      const qr = qrcode(0, "M");
+      qr.addData(link);
+      qr.make();
+      $("qrLink").innerHTML = qr.createSvgTag({ cellSize: 6, margin: 3, scalable: true });
+      $("qrLink").href = link;
+      $("shareLink").hidden = !navigator.share;
+      show("invite");
+    });
+    peer.on("connection", (c) => {
+      // One opponent per invite; a returning opponent (page reload) can rejoin
+      c.on("open", () => {
+        c.once("data", (msg) => {
+          if (!msg || msg.t !== "hello") return c.close();
+          if (G && G.status === "playing" && conn && conn.open) { c.send({ t: "busy" }); return setTimeout(() => c.close(), 200); }
+          if (G && G.status === "playing" && msg.name === G.opp.name) {
+            wire(c);
+            lostAt = null;
+            send({ t: "sync", game: snapshot() });
+            renderGame();
+            return;
+          }
+          if (G) { c.send({ t: "busy" }); return setTimeout(() => c.close(), 200); }
+          wire(c);
+          const hostColor = color === "random" ? (Math.random() < 0.5 ? "w" : "b") : color;
+          const opp = { name: String(msg.name).slice(0, 20), elo: +msg.elo || 1200, games: +msg.games || 0 };
+          send({ t: "start", tc, hostColor, host: { name: profile.name, elo: Math.round(profile.elo), games: profile.games } });
+          startGame(tc, hostColor, opp);
+        });
+      });
+    });
+    peer.on("error", (err) => {
+      $("create").disabled = false;
+      if (err.type === "unavailable-id") return createInvite(); // code clash: pick another
+      $("setupErr").textContent = `Couldn't create the invite (${err.type}). Check your internet and try again.`;
+      show("setup");
+    });
+  }
+
+  $("create").addEventListener("click", createInvite);
+  $("copyLink").addEventListener("click", () => {
+    $("inviteLink").select();
+    navigator.clipboard?.writeText($("inviteLink").value).catch(() => {});
+    $("copyLink").textContent = "Copied";
+    setTimeout(() => ($("copyLink").textContent = "Copy"), 1500);
+  });
+  $("shareLink").addEventListener("click", () => {
+    navigator.share({ title: "Play chess with me", text: `${profile.name} invited you to a ${TC_LABEL[$("tc").value]} chess game`, url: $("inviteLink").value }).catch(() => {});
+  });
+  $("cancelInvite").addEventListener("click", () => { leave(); show("setup"); });
+
+  // ---------- guest ----------
+
+  function joinInvite(code) {
+    role = "guest";
+    inviteCode = code;
+    $("joinErr").textContent = "";
+    $("joinStatus").textContent = "Connecting to your friend…";
+    peer = new Peer();
+    peer.on("open", () => {
+      const c = peer.connect(PEER_PREFIX + code, { reliable: true });
+      c.on("open", () => {
+        wire(c);
+        send({ t: "hello", name: profile.name, elo: Math.round(profile.elo), games: profile.games });
+      });
+    });
+    peer.on("error", (err) => {
+      $("joinStatus").textContent = "";
+      $("joinErr").textContent = err.type === "peer-unavailable"
+        ? "That invite isn't open anymore. Ask your friend to keep the page open, or send a new link."
+        : `Couldn't connect (${err.type}). Check your internet and try again.`;
+    });
+  }
+
+  $("joinForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    setName($("joinName").value);
+    renderProfile();
+    joinInvite(location.hash.slice(1));
+  });
+
+  // ---------- game ----------
+
+  function startGame(tc, hostColor, opp) {
+    const [mins, inc] = TIME_CONTROLS[tc];
+    const myColor = role === "host" ? hostColor : hostColor === "w" ? "b" : "w";
+    G = {
+      tc, base: mins * 60_000, inc: inc * 1000, myColor, opp, hostColor,
+      chess: new Chess(), clocks: { w: mins * 60_000, b: mins * 60_000 }, turnStart: null,
+      status: "playing", result: null, reason: null, change: null,
+      drawOffer: null, rematch: { me: false, opp: false }, chat: [],
+    };
+    selected = null; lostAt = null;
+    $("chatText").value = "";
+    show("play");
+    renderGame();
+  }
+
+  function snapshot() {
+    return { tc: G.tc, hostColor: G.hostColor, pgn: G.chess.pgn(), clocks: liveClocks(), running: !!G.turnStart, chat: G.chat,
+      host: { name: profile.name, elo: Math.round(profile.elo), games: profile.games } };
+  }
+
+  function liveClocks() {
+    const c = { ...G.clocks };
+    if (G.base && G.turnStart && G.status === "playing") {
+      const t = G.chess.turn();
+      c[t] = Math.max(0, c[t] - (Date.now() - G.turnStart));
+    }
+    return c;
+  }
+
+  function onMessage(msg) {
+    if (!msg || typeof msg !== "object") return;
+    if (msg.t === "busy") {
+      $("joinStatus").textContent = "";
+      $("joinErr").textContent = "That game already has two players.";
+      return;
+    }
+    if (msg.t === "start") {
+      if (!G || G.status !== "playing") startGame(msg.tc, msg.hostColor, msg.host);
+      return;
+    }
+    if (msg.t === "sync" && role === "guest") {
+      // Rejoining a game after a reload
+      startGame(msg.game.tc, msg.game.hostColor, msg.game.host);
+      if (msg.game.pgn) G.chess.load_pgn(msg.game.pgn);
+      G.clocks = msg.game.clocks;
+      G.turnStart = msg.game.running ? Date.now() : null;
+      G.chat = msg.game.chat || [];
+      renderGame();
+      return;
+    }
+    if (!G) return;
+    const oppColor = G.myColor === "w" ? "b" : "w";
+    switch (msg.t) {
+      case "move": {
+        if (G.status !== "playing" || G.chess.turn() !== oppColor) return;
+        const mv = G.chess.move({ from: msg.from, to: msg.to, promotion: msg.promotion || "q" });
+        if (!mv) return;
+        if (G.base && typeof msg.left === "number") G.clocks[oppColor] = msg.left;
+        G.turnStart = Date.now();
+        if (G.drawOffer === "opp") G.drawOffer = null;
+        selected = null;
+        checkPositionEnd();
+        break;
+      }
+      case "chat": G.chat.push({ from: G.opp.name, text: String(msg.text).slice(0, 300) }); break;
+      case "resign": endGame(G.chess.history().length < 2 ? null : 1, G.chess.history().length < 2 ? "aborted" : "resignation", false); break;
+      case "flag": endGame(1, "timeout", false); break;
+      case "draw":
+        if (G.drawOffer === "me") endGame(0.5, "agreement", false);
+        else G.drawOffer = "opp";
+        break;
+      case "decline": if (G.drawOffer === "me") G.drawOffer = null; break;
+      case "rematch":
+        G.rematch.opp = true;
+        if (G.rematch.me) beginRematch();
+        break;
+    }
+    renderGame();
+  }
+
+  function myMove(mv) {
+    const elapsed = G.turnStart ? Date.now() - G.turnStart : 0;
+    if (!G.chess.move(mv)) return;
+    if (G.base && G.turnStart) G.clocks[G.myColor] = Math.max(0, G.clocks[G.myColor] - elapsed) + G.inc;
+    G.turnStart = Date.now(); // clocks start once White has moved
+    if (G.drawOffer === "opp") G.drawOffer = null;
+    send({ t: "move", ...mv, left: G.clocks[G.myColor] });
+    checkPositionEnd();
+    renderGame();
+  }
+
+  function checkPositionEnd() {
+    const c = G.chess;
+    if (!c.game_over()) return;
+    if (c.in_checkmate()) return endGame(c.turn() === G.myColor ? 0 : 1, "checkmate", false);
+    const reason = c.in_stalemate() ? "stalemate" : c.in_threefold_repetition() ? "repetition"
+      : c.insufficient_material() ? "insufficient material" : "50-move rule";
+    endGame(0.5, reason, false);
+  }
+
+  // myScore: 1 win, 0.5 draw, 0 loss, null = aborted (unrated)
+  function endGame(myScore, reason, tellOpponent, msg) {
+    if (G.status !== "playing") return;
+    if (G.base && G.turnStart) G.clocks = liveClocks();
+    G.status = "over";
+    G.result = myScore;
+    G.reason = reason;
+    G.drawOffer = null;
+    lostAt = null;
+    if (tellOpponent) send(msg);
+    if (myScore !== null) {
+      const [change] = recordMatch(profile, { elo: G.opp.elo, games: G.opp.games }, myScore);
+      G.change = change;
+      profile.history.unshift({ opp: G.opp.name, oppElo: G.opp.elo, color: G.myColor, result: myScore, reason, change, after: profile.elo });
+      profile.history = profile.history.slice(0, 50);
+      saveProfile();
+      renderProfile();
+    }
+    renderGame();
+  }
+
+  function beginRematch() {
+    const opp = { ...G.opp };
+    // Swap colors; the host announces it so both sides agree
+    if (role === "host") {
+      const hostColor = G.hostColor === "w" ? "b" : "w";
+      send({ t: "start", tc: G.tc, hostColor, host: { name: profile.name, elo: Math.round(profile.elo), games: profile.games } });
+      startGame(G.tc, hostColor, opp);
+    }
+  }
+
+  // ---------- rendering ----------
+
+  const fmtClock = (ms) => {
+    const s = Math.ceil(ms / 1000);
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  };
+
+  function playerBar(color) {
+    const mine = color === G.myColor;
+    const p = mine ? { name: profile.name, elo: Math.round(profile.elo) } : G.opp;
+    const online = mine || !!(conn && conn.open);
+    return `<div class="who"><span class="dot ${online ? "on" : ""}"></span><b>${esc(p.name)}</b>
+      <span class="dim">${p.elo}</span>${rankBadge(p.elo)}</div><div class="clock" data-clock="${color}"></div>`;
+  }
+
+  function renderGame() {
+    if (!G) return;
+    const oppColor = G.myColor === "w" ? "b" : "w";
+    $("topBar").innerHTML = playerBar(oppColor);
+    $("bottomBar").innerHTML = playerBar(G.myColor);
+    $("board").innerHTML = boardHtml(G.chess, G.myColor, selected);
+    $("moves").innerHTML = movesHtml(G.chess);
+    $("moves").scrollTop = $("moves").scrollHeight;
+    tick();
+
+    const playing = G.status === "playing";
+    if (playing) {
+      const mine = G.chess.turn() === G.myColor;
+      let text = mine ? (G.chess.in_check() ? "You're in check — your move" : "Your move") : `Waiting for ${G.opp.name}`;
+      if (lostAt) text += ` · ${G.opp.name} lost connection — you win if they're not back within a minute`;
+      $("status").textContent = text;
+    } else if (G.result === null) {
+      $("status").textContent = `Game ${G.reason}. No rating change.`;
+    } else {
+      const word = G.result === 1 ? "You won" : G.result === 0 ? "You lost" : "Draw";
+      $("status").innerHTML = `${word} by ${esc(G.reason)} · ${fmt(G.change)} → ${Math.round(profile.elo)}`;
+    }
+
+    $("drawRow").hidden = !(playing && G.drawOffer === "opp");
+    $("drawText").textContent = `${G.opp.name} offers a draw`;
+    $("offerDraw").hidden = !playing;
+    $("offerDraw").disabled = G.drawOffer === "me";
+    $("offerDraw").textContent = G.drawOffer === "me" ? "Draw offered" : "Offer draw";
+    $("resign").hidden = !playing;
+    $("resign").textContent = G.chess.history().length < 2 ? "Abort" : "Resign";
+    const connected = !!(conn && conn.open);
+    $("rematch").hidden = playing || !connected;
+    $("rematch").disabled = G.rematch.me;
+    $("rematch").textContent = G.rematch.me ? "Rematch offered" : G.rematch.opp ? `${G.opp.name} wants a rematch — accept` : "Rematch";
+    $("newInvite").hidden = playing;
+    $("chatForm").hidden = !connected;
+
+    $("chat").innerHTML = G.chat.map((c) => `<p><b>${esc(c.from)}:</b> ${esc(c.text)}</p>`).join("")
+      || `<p class="dim">Chat with ${esc(G.opp.name)} here.</p>`;
+    $("chat").scrollTop = $("chat").scrollHeight;
+  }
+
+  function tick() {
+    if (!G) return;
+    const clocks = liveClocks();
+    for (const el of document.querySelectorAll("[data-clock]")) {
+      const c = el.dataset.clock;
+      if (!G.base) { el.hidden = true; continue; }
+      const running = G.status === "playing" && G.turnStart && G.chess.turn() === c;
+      el.textContent = fmtClock(clocks[c]);
+      el.className = `clock ${running ? "run" : ""} ${clocks[c] < 20000 && G.status === "playing" ? "low" : ""}`;
+    }
+    if (G.status !== "playing") return;
+    // My flag fell: I lose, and tell my friend
+    if (G.base && G.turnStart && G.chess.turn() === G.myColor && clocks[G.myColor] <= 0) {
+      endGame(0, "timeout", true, { t: "flag" });
+    }
+    // Friend vanished for too long
+    if (lostAt && Date.now() - lostAt > ABANDON_MS) {
+      endGame(G.chess.history().length < 2 ? null : 1, G.chess.history().length < 2 ? "aborted — friend left" : "abandoned", false);
+    }
+  }
+  setInterval(tick, 200);
+
+  // ---------- controls ----------
+
+  $("board").addEventListener("click", (e) => {
+    if (!G || G.status !== "playing" || G.chess.turn() !== G.myColor) return;
+    handleBoardClick(e, G.chess, G.myColor, selected, myMove,
+      (sq) => { selected = sq; $("board").innerHTML = boardHtml(G.chess, G.myColor, selected); });
+  });
+
+  $("offerDraw").addEventListener("click", () => {
+    if (G.drawOffer === "opp") return endGame(0.5, "agreement", true, { t: "draw" });
+    G.drawOffer = "me"; send({ t: "draw" }); renderGame();
+  });
+  $("acceptDraw").addEventListener("click", () => endGame(0.5, "agreement", true, { t: "draw" }));
+  $("declineDraw").addEventListener("click", () => { G.drawOffer = null; send({ t: "decline" }); renderGame(); });
+  $("resign").addEventListener("click", () => {
+    const abort = G.chess.history().length < 2;
+    if (!confirm(abort ? "Abort this game? It won't be rated." : "Resign this game?")) return;
+    endGame(abort ? null : 0, abort ? "aborted" : "resignation", true, { t: "resign" });
+  });
+  $("rematch").addEventListener("click", () => {
+    G.rematch.me = true;
+    send({ t: "rematch" });
+    if (G.rematch.opp) beginRematch();
+    renderGame();
+  });
+  $("newInvite").addEventListener("click", () => { leave(); show("setup"); });
+
+  $("chatForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const text = $("chatText").value.trim();
+    if (!text || !G) return;
+    $("chatText").value = "";
+    G.chat.push({ from: profile.name, text });
+    send({ t: "chat", text });
+    renderGame();
+  });
+
+  function leave() {
+    if (conn) conn.close();
+    if (peer) peer.destroy();
+    conn = peer = G = null;
+    role = null;
+    if (location.hash) history.replaceState(null, "", location.pathname);
+  }
+
+  window.addEventListener("beforeunload", (e) => {
+    if (G && G.status === "playing") { e.preventDefault(); e.returnValue = ""; }
+  });
+
+  // ---------- start ----------
+
+  renderProfile();
+  const code = location.hash.slice(1);
+  if (/^[a-z0-9]{6}$/.test(code)) {
+    $("joinName").value = profile.name;
+    show("join");
+  } else {
+    if (!profile.name) setName("");
+    renderProfile();
+    show("setup");
+  }
+</script>
+</body>
+</html>

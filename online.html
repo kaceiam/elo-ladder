@@ -22,8 +22,38 @@
       <button id="phoneBtn">📱 Phone</button>
       <a class="btn" href="bots.html">Play bots</a>
       <button id="changeName" hidden>Change name</button>
+      <button class="primary" id="adminBtn" hidden>🛡 Admin</button>
     </div>
   </div>
+
+  <div class="banner" id="noticeBar" hidden></div>
+
+  <!-- Shown to players who were kicked, banned or restricted -->
+  <section id="blocked" hidden>
+    <h2 id="blockedTitle">Removed</h2>
+    <p id="blockedText"></p>
+    <div class="row">
+      <button class="primary" id="blockedRetry" onclick="location.reload()">Reload</button>
+      <a class="btn" href="bots.html">Play the bots</a>
+    </div>
+  </section>
+
+  <!-- Admin tab: search players, open one, see everything, take action -->
+  <section id="adminPanel" hidden>
+    <div class="row" style="justify-content: space-between">
+      <h2 style="margin: 0">🛡 Admin</h2>
+      <button id="adminClose">Close</button>
+    </div>
+    <form id="adminSearchForm" class="row" style="margin-top: 12px">
+      <input type="text" id="adminQuery" placeholder="Search any player's name" autocomplete="off">
+      <button>Search</button>
+    </form>
+    <div class="err" id="adminErr"></div>
+    <div class="admin">
+      <div class="list" id="adminResults"></div>
+      <div id="adminDetail"><p class="dim">Search for a player, or click anyone's name in the lobby, leaderboard, friends list or a game.</p></div>
+    </div>
+  </section>
 
   <section id="phone" hidden>
     <div class="row" style="justify-content: space-between">
@@ -233,8 +263,22 @@
   const pendingJoin = new URLSearchParams(location.search).get("join");
 
   function show(section) {
-    for (const id of ["noServer", "login", "lobby", "play"]) $(id).hidden = id !== section;
-    $("changeName").hidden = !me;
+    for (const id of ["noServer", "login", "lobby", "play", "blocked"]) $(id).hidden = id !== section;
+    $("changeName").hidden = !me || section === "blocked";
+    $("adminBtn").hidden = !(me && me.admin) || section === "blocked";
+    if (section === "blocked") $("adminPanel").hidden = true;
+  }
+
+  // Kicked, banned or restricted: stop reconnecting and say why
+  function showBlocked(kind, message, until, reason) {
+    es && es.close();
+    es = null;
+    $("blockedTitle").textContent = kind === "ban" ? "You're banned" : kind === "restriction" ? "You're restricted" : "You were removed";
+    // Show restriction end times in the player's own time zone
+    if (kind === "restriction" && until) message = `You can't use online play until ${new Date(until).toLocaleString()}.${reason ? ` Reason: ${reason}` : ""}`;
+    $("blockedText").textContent = message;
+    $("blockedRetry").textContent = kind === "kick" ? "Come back" : "Reload";
+    show("blocked");
   }
 
   async function api(action, body = {}) {
@@ -245,7 +289,12 @@
     });
     const data = await res.json().catch(() => null);
     if (!data) throw new Error("Can't reach the game server — is start.cmd still running?");
-    if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+    if (!res.ok) {
+      const err = new Error(data.error || `Error ${res.status}`);
+      err.data = data;
+      if (data.sanction) showBlocked(data.sanction.kind, data.sanction.message, data.sanction.until, data.sanction.reason);
+      throw err;
+    }
     return data;
   }
 
@@ -254,7 +303,16 @@
   async function login(name) {
     const tokens = store.get(TOKENS_KEY, {});
     const known = Object.keys(tokens).find((k) => k.toLowerCase() === name.toLowerCase());
-    const res = await api("login", { name, token: known ? tokens[known] : undefined });
+    let res;
+    try {
+      res = await api("login", { name, token: known ? tokens[known] : undefined });
+    } catch (err) {
+      // The admin name needs the secret admin key on a new device
+      if (!err.data || !err.data.needKey) throw err;
+      const adminKey = prompt(`${err.message}:`);
+      if (!adminKey) throw new Error("Admin key needed for that name.");
+      res = await api("login", { name, adminKey: adminKey.trim() });
+    }
     tokens[res.name] = res.token;
     store.set(TOKENS_KEY, tokens);
     store.set(CURRENT_KEY, res.name);
@@ -301,9 +359,14 @@
     es && es.close();
     es = new EventSource(`/api/events?token=${encodeURIComponent(token)}`);
     es.onmessage = (e) => handle(JSON.parse(e.data));
-    es.onerror = () => {
-      // CLOSED means the server refused us (e.g. its data was reset); otherwise it retries itself
-      if (es.readyState === EventSource.CLOSED) { me = null; show("login"); $("loginErr").textContent = "Please log in again."; }
+    es.onerror = async () => {
+      // CLOSED means the server refused us (banned/restricted, or its data was reset); otherwise it retries itself
+      if (!es || es.readyState !== EventSource.CLOSED) return;
+      try { await api("login", { token }); connect(); }
+      catch (err) {
+        if (err.data && err.data.sanction) return; // api() already showed why
+        me = null; show("login"); $("loginErr").textContent = "Please log in again.";
+      }
     };
   }
 
@@ -317,6 +380,12 @@
         history.replaceState(null, "", location.pathname);
         api("join", { id: pendingJoin }).catch((err) => { $("lobbyErr").textContent = err.message; });
       }
+    } else if (msg.type === "removed") {
+      showBlocked(msg.kind, msg.message, msg.until, msg.reason);
+    } else if (msg.type === "notice") {
+      $("noticeBar").textContent = msg.text;
+      $("noticeBar").hidden = false;
+      setTimeout(() => ($("noticeBar").hidden = true), 15000);
     } else if (msg.type === "lobby") {
       lobby = msg;
       const mine = lobby.leaderboard.find((p) => me && p.name === me.name);
@@ -349,7 +418,7 @@
 
     $("friendRequests").innerHTML =
       incoming.map((p) => `
-        <div class="seek"><div><b>${esc(p.name)}</b> <span class="dim">${p.elo}</span> wants to be friends</div>
+        <div class="seek"><div><b class="pname" data-player="${esc(p.name)}">${esc(p.name)}</b> <span class="dim">${p.elo}</span> wants to be friends</div>
           <div class="row"><button class="primary" data-act="friendAccept" data-name="${esc(p.name)}">Accept</button>
           <button data-act="friendDecline" data-name="${esc(p.name)}">Decline</button></div></div>`).join("") +
       outgoing.map((n) => `
@@ -364,7 +433,7 @@
       return `
         <div class="seek">
           <div class="who"><span class="dot ${f.status === "online" ? "on" : f.status === "playing" ? "busy" : ""}"></span>
-            <b>${esc(f.name)}</b> <span class="dim">${f.elo}</span> ${rankBadge(f.elo)}
+            <b class="pname" data-player="${esc(f.name)}">${esc(f.name)}</b> <span class="dim">${f.elo}</span> ${rankBadge(f.elo)}
             <div class="dim small">${STATUS_TEXT[f.status]}</div></div>
           <div class="row">${action}<button class="x" data-act="friendRemove" data-name="${esc(f.name)}" title="Remove friend">✕</button></div>
         </div>`;
@@ -377,7 +446,7 @@
     $("challengeIn").hidden = !incoming.length || inGame || !me;
     $("challengeIn").innerHTML = incoming.map((c) => `
       <div class="banner row" style="justify-content: space-between">
-        <div>⚔️ <b>${esc(c.from)}</b> <span class="dim">(${c.fromElo})</span> challenges you to a <b>${TC_LABEL[c.tc]}</b> game</div>
+        <div>⚔️ <b class="pname" data-player="${esc(c.from)}">${esc(c.from)}</b> <span class="dim">(${c.fromElo})</span> challenges you to a <b>${TC_LABEL[c.tc]}</b> game</div>
         <div class="row"><button class="primary" data-act="challengeAccept" data-id="${c.id}">Accept</button>
           <button data-act="challengeDecline" data-id="${c.id}">Decline</button></div>
       </div>`).join("");
@@ -453,6 +522,8 @@
     $("meElo").textContent = me.elo;
     $("meRank").outerHTML = `<span class="rank ${rankOf(me.elo)}" id="meRank">${rankOf(me.elo)}</span>`;
     $("meGames").textContent = `${me.games} rated games`;
+    $("adminBtn").hidden = !me.admin;
+    document.body.classList.toggle("is-admin", !!me.admin);
     $("meNameNote").textContent = me.nextNameChange && Date.now() < me.nextNameChange ? `Next name change: ${longDate(me.nextNameChange)}` : "";
   }
 
@@ -461,7 +532,7 @@
     const colorText = { w: "plays White", b: "plays Black", random: "random color" };
     const seeks = lobby.open.map((s) => `
       <div class="seek">
-        <div><b>${esc(s.creator.name)}</b> <span class="dim">${s.creator.elo}</span> ${rankBadge(s.creator.elo)}
+        <div><b class="pname" data-player="${esc(s.creator.name)}">${esc(s.creator.name)}</b> <span class="dim">${s.creator.elo}</span> ${rankBadge(s.creator.elo)}
           <div class="dim">${TC_LABEL[s.tc]} · ${colorText[s.color]}</div></div>
         ${s.creator.name === me.name ? `<span class="dim">Yours</span>` : `<button class="primary" data-join="${s.id}">Join</button>`}
       </div>`).join("");
@@ -470,7 +541,7 @@
     $("onlineCount").textContent = `· ${lobby.online} online · ${lobby.live} playing`;
     renderQuick();
     $("leaders").innerHTML = lobby.leaderboard.length ? lobby.leaderboard.map((p, i) => `
-      <tr><td>${i + 1}</td><td><span class="dot ${p.online ? "on" : ""}"></span> ${esc(p.name)}</td><td>${rankBadge(p.elo)}</td>
+      <tr><td>${i + 1}</td><td><span class="dot ${p.online ? "on" : ""}"></span> <span class="pname" data-player="${esc(p.name)}">${esc(p.name)}</span></td><td>${rankBadge(p.elo)}</td>
       <td class="num">${p.elo}</td><td class="num">${p.games}</td></tr>`).join("")
       : `<tr><td colspan="5" class="empty">No rated games yet.</td></tr>`;
   }
@@ -521,7 +592,7 @@
   function playerBar(color) {
     const p = view[color === "w" ? "white" : "black"];
     return `<div class="who"><span class="dot ${p.online ? "on" : ""}" title="${p.online ? "Online" : "Offline"}"></span>
-      <b>${esc(p.name)}</b><span class="dim">${p.elo}</span>${rankBadge(p.elo)}</div>
+      <b class="pname" data-player="${esc(p.name)}">${esc(p.name)}</b><span class="dim">${p.elo}</span>${rankBadge(p.elo)}</div>
       <div class="clock" data-clock="${color}"></div>`;
   }
 
@@ -570,7 +641,7 @@
     $("addOpp").dataset.act = "friendRequest";
     $("addOpp").dataset.name = oppName;
 
-    $("chat").innerHTML = view.chat.map((c) => `<p><b>${esc(c.from)}:</b> ${esc(c.text)}</p>`).join("")
+    $("chat").innerHTML = view.chat.map((c) => `<p><b class="pname" data-player="${esc(c.from)}">${esc(c.from)}:</b> ${esc(c.text)}</p>`).join("")
       || `<p class="dim">Chat with your opponent here.</p>`;
     $("chat").scrollTop = $("chat").scrollHeight;
   }
@@ -623,6 +694,146 @@
   });
 
   // ---------- start ----------
+
+  // ---------- admin ----------
+
+  const STATUS_LABEL = { online: "Online", playing: "In a game", offline: "Offline" };
+  const RESTRICT_TIMES = [["60", "1 hour"], ["360", "6 hours"], ["1440", "1 day"], ["4320", "3 days"], ["10080", "1 week"],
+    ["43200", "30 days"], ["129600", "90 days"], ["525600", "1 year"], ["custom", "Custom…"]];
+  const when = (t) => (t ? new Date(t).toLocaleString() : "—");
+  let adminName = null;
+
+  function openAdmin(name) {
+    if (!me || !me.admin) return;
+    $("adminPanel").hidden = false;
+    $("adminPanel").scrollIntoView({ behavior: "smooth" });
+    if (name) loadAdminPlayer(name);
+    else { $("adminQuery").focus(); adminSearch(""); }
+  }
+
+  async function adminSearch(q) {
+    $("adminErr").textContent = "";
+    try {
+      const { players } = await api("adminSearch", { q });
+      $("adminResults").innerHTML = players.map((p) => `
+        <button class="seek pick ${p.name === adminName ? "on" : ""}" data-admin-open="${esc(p.name)}">
+          <span><span class="dot ${p.status === "online" ? "on" : p.status === "playing" ? "busy" : ""}"></span>
+            <b>${esc(p.name)}</b> <span class="dim">${p.elo}</span>
+            ${p.admin ? `<span class="tag">admin</span>` : ""}${p.banned ? `<span class="tag bad">banned</span>` : ""}
+            ${p.restrictedUntil ? `<span class="tag warn">restricted</span>` : ""}</span>
+        </button>`).join("") || `<div class="empty">No players found.</div>`;
+    } catch (err) { $("adminErr").textContent = err.message; }
+  }
+
+  async function loadAdminPlayer(name) {
+    $("adminErr").textContent = "";
+    try {
+      const d = await api("adminPlayer", { name });
+      adminName = d.name;
+      renderAdminPlayer(d);
+      adminSearch($("adminQuery").value.trim());
+    } catch (err) { $("adminErr").textContent = err.message; }
+  }
+
+  function renderAdminPlayer(d) {
+    const word = { 1: "Won", 0.5: "Draw", 0: "Lost" };
+    const status = d.ban ? `<span class="tag bad">Banned</span> by ${esc(d.ban.by)} on ${when(d.ban.at)}${d.ban.reason ? ` — “${esc(d.ban.reason)}”` : ""}${d.ban.ip ? " · network blocked" : ""}`
+      : d.restriction ? `<span class="tag warn">Restricted</span> until ${when(d.restriction.until)}${d.restriction.reason ? ` — “${esc(d.restriction.reason)}”` : ""}`
+      : `<span class="tag ok">In good standing</span>`;
+    const actions = d.admin ? `<p class="dim">This is an admin account.</p>` : `
+      <div class="actions">
+        <div class="row"><input type="text" id="admReason" placeholder="Reason (shown to them)" maxlength="200"></div>
+        <div class="row">
+          <button data-adm="kick" ${d.status === "offline" ? "disabled title=\"They're offline\"" : ""}>👢 Kick</button>
+          ${d.restriction ? `<button data-adm="unrestrict">Lift restriction</button>`
+            : `<select id="admTime">${RESTRICT_TIMES.map(([v, l]) => `<option value="${v}" ${v === "1440" ? "selected" : ""}>${l}</option>`).join("")}</select>
+               <button data-adm="restrict">⏳ Restrict</button>`}
+          ${d.ban ? `<button data-adm="unban">Unban</button>`
+            : `<label class="dim row" style="gap: 4px"><input type="checkbox" id="admIp" checked> also block their network</label>
+               <button class="danger" data-adm="ban">⛔ Ban</button>`}
+        </div>
+      </div>`;
+    $("adminDetail").innerHTML = `
+      <div class="row" style="justify-content: space-between">
+        <div><span class="dot ${d.status === "online" ? "on" : d.status === "playing" ? "busy" : ""}"></span>
+          <b style="font-size: 20px">${esc(d.name)}</b> <span class="dim">${STATUS_LABEL[d.status]}</span></div>
+        <button data-adm="rename">✏️ Change name</button>
+      </div>
+      <p>${status}</p>
+      ${actions}
+      <div class="kv">
+        <div><span class="dim">Rating</span><b>${d.elo}</b> ${rankBadge(d.elo)}</div>
+        <div><span class="dim">Games</span><b>${d.games}</b> <span class="dim">${d.wins}W ${d.losses}L ${d.draws}D</span></div>
+        <div><span class="dim">Joined</span>${when(d.createdAt)}</div>
+        <div><span class="dim">Last seen</span>${d.status === "offline" ? when(d.lastSeenAt) : "now"}</div>
+        <div><span class="dim">Last network</span>${esc(d.lastIp || "—")}</div>
+        <div><span class="dim">Last name change</span>${when(d.nameChangedAt)}</div>
+      </div>
+      ${d.currentGame ? `<h3>Current game</h3><p>${esc(d.currentGame.white || "?")} vs ${esc(d.currentGame.black || "(waiting)")} · ${TC_LABEL[d.currentGame.tc]} · ${d.currentGame.moves} moves</p>
+        ${d.currentGame.chat.length ? `<div class="chat" style="height: auto; max-height: 160px">${d.currentGame.chat.map((c) => `<p><b>${esc(c.from)}:</b> ${esc(c.text)}</p>`).join("")}</div>` : ""}` : ""}
+      <h3>Friends (${d.friends.length})</h3>
+      <p>${d.friends.map((f) => `<a href="#" data-admin-open="${esc(f.name)}">${esc(f.name)}</a>`).join(", ") || `<span class="dim">None</span>`}
+        ${d.requests.length ? `<br><span class="dim">Pending requests from: ${d.requests.map(esc).join(", ")}</span>` : ""}</p>
+      <h3>Recent games</h3>
+      <div class="scroll"><table><thead><tr><th>When</th><th>Opponent</th><th>Result</th><th class="num">Change</th></tr></thead><tbody>
+        ${d.history.map((h) => `<tr><td>${when(h.at)}</td><td><a href="#" data-admin-open="${esc(h.opp)}">${esc(h.opp)}</a></td>
+          <td>${h.result === null ? "Aborted" : word[h.result]} <span class="dim">· ${esc(h.reason)}</span></td><td class="num">${fmt(h.change || 0)}</td></tr>`).join("")
+          || `<tr><td colspan="4" class="empty">No games yet.</td></tr>`}
+      </tbody></table></div>
+      <h3>Chat messages</h3>
+      <div class="chat" style="height: auto; max-height: 200px">${d.chatLog.map((c) => `<p><span class="dim">${when(c.at)} → ${esc(c.to)}:</span> ${esc(c.text)}</p>`).join("") || `<p class="dim">No messages.</p>`}</div>
+      <h3>Admin history</h3>
+      <p>${d.sanctionLog.map((s) => `<span class="dim">${when(s.at)}</span> ${esc(s.by)}: <b>${esc(s.action)}</b>${s.reason ? ` — “${esc(s.reason)}”` : ""}${s.from ? ` (${esc(s.from)} → ${esc(s.to)})` : ""}`).join("<br>") || `<span class="dim">Nothing yet.</span>`}</p>`;
+  }
+
+  async function adminAction(kind) {
+    const name = adminName;
+    const reason = $("admReason") ? $("admReason").value.trim() : "";
+    try {
+      if (kind === "kick") {
+        if (!confirm(`Kick ${name}? They're disconnected now and lose their current game.`)) return;
+        await api("adminKick", { name, reason });
+      } else if (kind === "ban") {
+        if (!confirm(`Ban ${name} permanently?${$("admIp").checked ? " Their network will be blocked from making new accounts too." : ""}`)) return;
+        await api("adminBan", { name, reason, blockIp: $("admIp").checked });
+      } else if (kind === "unban") {
+        await api("adminUnban", { name });
+      } else if (kind === "restrict") {
+        let minutes = $("admTime").value;
+        if (minutes === "custom") {
+          const input = prompt("Restrict for how long? Examples: 30m, 12h, 5d, 2w");
+          const m = /^\s*(\d+(?:\.\d+)?)\s*([mhdw])\s*$/i.exec(input || "");
+          if (!m) return input && alert("Use a number and m, h, d or w — like 12h or 5d.");
+          minutes = Math.round(+m[1] * { m: 1, h: 60, d: 1440, w: 10080 }[m[2].toLowerCase()]);
+        }
+        if (!confirm(`Restrict ${name} for ${$("admTime").selectedOptions[0].text === "Custom…" ? `${minutes} minutes` : $("admTime").selectedOptions[0].text}? They're blocked from the app until then.`)) return;
+        await api("adminRestrict", { name, minutes: +minutes, reason });
+      } else if (kind === "unrestrict") {
+        await api("adminUnrestrict", { name });
+      } else if (kind === "rename") {
+        const newName = prompt(`New name for ${name}:`, name);
+        if (!newName || newName.trim() === name) return;
+        const res = await api("adminRename", { name, newName: newName.trim() });
+        adminName = res.name;
+      }
+      loadAdminPlayer(adminName);
+    } catch (err) { $("adminErr").textContent = err.message; }
+  }
+
+  $("adminBtn").addEventListener("click", () => openAdmin());
+  $("adminClose").addEventListener("click", () => ($("adminPanel").hidden = true));
+  $("adminSearchForm").addEventListener("submit", (e) => { e.preventDefault(); adminSearch($("adminQuery").value.trim()); });
+  $("adminPanel").addEventListener("click", (e) => {
+    const act = e.target.closest("[data-adm]");
+    if (act) return adminAction(act.dataset.adm);
+  });
+  // Admins can click any player's name anywhere to open them in the admin tab
+  document.addEventListener("click", (e) => {
+    const el = e.target.closest("[data-admin-open], [data-player]");
+    if (!el || !me || !me.admin) return;
+    e.preventDefault();
+    openAdmin(el.dataset.adminOpen || el.dataset.player);
+  });
 
   // ---------- phone + install ----------
 

@@ -40,7 +40,46 @@ const byToken = (token) => token && tokens.get(token);
 const publicPlayer = (p) => ({ name: p.name, elo: Math.round(p.elo), games: p.games });
 const NAME_COOLDOWN_MS = 180 * 24 * 3600 * 1000;
 // What a player sees about themselves
-const meView = (p) => ({ ...publicPlayer(p), nameChangedAt: p.nameChangedAt || null, nextNameChange: p.nameChangedAt ? p.nameChangedAt + NAME_COOLDOWN_MS : null });
+const meView = (p) => ({ ...publicPlayer(p), admin: !!p.admin, nameChangedAt: p.nameChangedAt || null, nextNameChange: p.nameChangedAt ? p.nameChangedAt + NAME_COOLDOWN_MS : null });
+
+// ---------- admin + sanctions ----------
+
+// The account named ADMIN_NAME is the admin. Claiming that name (or signing
+// into it on a new device) needs the secret key in data/admin-key.txt.
+const ADMIN_NAME = process.env.ADMIN_NAME || "Keyace";
+const ADMIN_KEY_FILE = path.join(DATA_DIR, "admin-key.txt");
+let adminKey;
+try { adminKey = fs.readFileSync(ADMIN_KEY_FILE, "utf8").trim(); } catch {}
+if (!adminKey) {
+  adminKey = crypto.randomBytes(9).toString("base64url");
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.writeFileSync(ADMIN_KEY_FILE, adminKey + "\n");
+}
+const isAdminName = (name) => String(name || "").trim().toLowerCase() === ADMIN_NAME.toLowerCase();
+{
+  const acct = Object.values(players).find((p) => isAdminName(p.name));
+  if (acct && !acct.admin) { acct.admin = true; savePlayers(); }
+}
+
+// Networks blocked along with a ban
+const bannedIps = new Set(Object.values(players).map((p) => p.ban && p.ban.ip).filter(Boolean));
+
+// null when the player is allowed in, otherwise why not
+function sanctionOf(p) {
+  if (p.ban) return { kind: "ban", reason: p.ban.reason, message: `This account is banned.${p.ban.reason ? ` Reason: ${p.ban.reason}` : ""}` };
+  if (p.restriction && p.restriction.until > Date.now()) {
+    const until = new Date(p.restriction.until).toUTCString();
+    return { kind: "restriction", until: p.restriction.until, reason: p.restriction.reason,
+      message: `This account is restricted until ${until}.${p.restriction.reason ? ` Reason: ${p.restriction.reason}` : ""}` };
+  }
+  return null;
+}
+
+function logSanction(p, action, by, extra = {}) {
+  (p.sanctionLog || (p.sanctionLog = [])).unshift({ at: Date.now(), action, by, ...extra });
+  p.sanctionLog = p.sanctionLog.slice(0, 100);
+  console.log(`[admin] ${by} → ${action} ${p.name}${extra.reason ? ` (${extra.reason})` : ""}`);
+}
 
 // ---------- connections ----------
 
@@ -48,7 +87,7 @@ const streams = new Map(); // name -> Set of SSE responses
 const lastSeen = new Map(); // name -> time the last stream closed
 
 function send(name, msg) {
-  for (const res of streams.get(name) || []) res.write(`data: ${JSON.stringify(msg)}\n\n`);
+  for (const res of streams.get(name) || []) if (!res.writableEnded) res.write(`data: ${JSON.stringify(msg)}\n\n`);
 }
 const online = (name) => (streams.get(name)?.size || 0) > 0;
 
@@ -233,8 +272,19 @@ function endGame(g, result, reason) {
       p[key] = (p[key] || 0) + 1;
     }
     g.changes = { w: cw, b: cb };
-    savePlayers();
   }
+  // Per-player game history (also shown to the admin)
+  for (const [name, color] of [[g.white, "w"], [g.black, "b"]]) {
+    const p = players[name];
+    if (!p) continue;
+    const score = result === null ? null : color === "w" ? result : 1 - result;
+    (p.history || (p.history = [])).unshift({
+      at: Date.now(), opp: color === "w" ? g.black : g.white, color, tc: g.tc, result: score, reason,
+      change: g.changes ? g.changes[color] : 0, elo: Math.round(p.elo), moves: g.chess.history().length,
+    });
+    p.history = p.history.slice(0, 100);
+  }
+  savePlayers();
   pushGame(g);
   pushLobby();
   pushFriends(g.white, g.black);
@@ -249,6 +299,57 @@ function checkPositionEnd(g) {
   const reason = c.in_stalemate() ? "stalemate" : c.in_threefold_repetition() ? "repetition"
     : c.insufficient_material() ? "insufficient material" : "50-move rule";
   endGame(g, 0.5, reason);
+}
+
+// Throw a player out right now: forfeit their game, clear their seeks, queue
+// spot and challenges, and close their live connections with a message.
+function removePlayer(name, notice) {
+  const g = activeGameOf(name);
+  if (g && g.status === "open") games.delete(g.id);
+  if (g && g.status === "playing") {
+    const color = g.white === name ? "w" : "b";
+    if (g.chess.history().length < 2) endGame(g, null, "aborted — player removed");
+    else endGame(g, color === "w" ? 0 : 1, "opponent removed by an admin");
+  }
+  queue.delete(name);
+  dropChallenges(name);
+  const conns = streams.get(name) || new Set();
+  for (const res of [...conns]) {
+    res.write(`data: ${JSON.stringify({ type: "removed", ...notice })}\n\n`);
+    res.end();
+    conns.delete(res);
+    setTimeout(() => res.socket && res.socket.destroy(), 200);
+  }
+  lastSeen.set(name, Date.now());
+  pushLobby();
+  pushFriends(name);
+}
+
+// Rename an account everywhere it's referenced (friends, games, connections)
+function renamePlayer(p, name) {
+  const old = p.name;
+  const swap = (n) => (n === old ? name : n);
+  delete players[old];
+  p.name = name;
+  players[name] = p;
+  for (const other of Object.values(players)) {
+    if (other.friends) other.friends = other.friends.map(swap);
+    if (other.requests) other.requests = other.requests.map(swap);
+  }
+  for (const g of games.values()) {
+    g.white = swap(g.white); g.black = swap(g.black); g.creator = swap(g.creator);
+    if (g.rematch.delete(old)) g.rematch.add(name);
+  }
+  for (const c of challenges.values()) { c.from = swap(c.from); c.to = swap(c.to); }
+  for (const map of [streams, lastSeen, lastChat, queue]) {
+    if (map.has(old)) { map.set(name, map.get(old)); map.delete(old); }
+  }
+  savePlayers();
+  send(name, { type: "me", me: meView(p) });
+  pushFriends(name);
+  pushLobby();
+  const g = activeGameOf(name);
+  if (g) pushGame(g);
 }
 
 // Widening rating windows can create new pairings as time passes;
@@ -290,9 +391,28 @@ setInterval(() => {
 // ---------- actions ----------
 
 class HttpError extends Error {
-  constructor(status, message) { super(message); this.status = status; }
+  constructor(status, message, extra) { super(message); this.status = status; this.extra = extra; }
 }
-const fail = (status, message) => { throw new HttpError(status, message); };
+const fail = (status, message, extra) => { throw new HttpError(status, message, extra); };
+
+const keyMatches = (given) => {
+  const a = Buffer.from(String(given || "")), b = Buffer.from(adminKey);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+};
+const refuseIfSanctioned = (p) => {
+  const s = sanctionOf(p);
+  if (s) fail(403, s.message, { sanction: s });
+};
+const requireAdmin = (me) => { if (!players[me] || !players[me].admin) fail(403, "Admins only"); };
+function adminTarget(body, me, { notAdmin = true } = {}) {
+  requireAdmin(me);
+  const p = findPlayer(body.name);
+  if (!p) fail(404, "No player with that name");
+  if (notAdmin && p.admin) fail(400, "You can't do that to an admin");
+  return p;
+}
+const playerStatus = (name) => (!online(name) ? "offline" : activeGameOf(name)?.status === "playing" ? "playing" : "online");
+const NAME_RULE = /^[A-Za-z0-9 _-]{2,20}$/;
 
 function myGame(me, id) {
   const g = games.get(id);
@@ -317,16 +437,29 @@ const actions = {
   login(body, me, ip) {
     // A device that already has an account stays that account (even if it was renamed)
     const owner = body.token && tokens.get(body.token);
-    if (owner) return { ...publicPlayer(owner), token: owner.token };
-    const name = String(body.name || "").trim();
-    if (!/^[A-Za-z0-9 _-]{2,20}$/.test(name)) fail(400, "Names are 2–20 letters, numbers, spaces, _ or -");
-    const key = Object.keys(players).find((k) => k.toLowerCase() === name.toLowerCase());
-    if (key) {
-      if (players[key].token !== body.token) fail(409, "That name is taken");
-      return { ...publicPlayer(players[key]), token: players[key].token };
+    if (owner) {
+      refuseIfSanctioned(owner);
+      owner.lastIp = ip;
+      return { ...publicPlayer(owner), token: owner.token };
     }
+    const name = String(body.name || "").trim();
+    if (!NAME_RULE.test(name)) fail(400, "Names are 2–20 letters, numbers, spaces, _ or -");
+    const existing = findPlayer(name);
+    if (existing) {
+      // The admin can sign in on a new device with the admin key
+      if (existing.admin && keyMatches(body.adminKey)) {
+        existing.lastIp = ip;
+        return { ...publicPlayer(existing), token: existing.token };
+      }
+      if (existing.admin) fail(401, `Enter the admin key to sign in as ${existing.name}`, { needKey: true });
+      fail(409, "That name is taken");
+    }
+    if (bannedIps.has(ip)) fail(403, "New accounts can't be made from this network.");
+    if (isAdminName(name) && !keyMatches(body.adminKey)) fail(401, "That name is reserved. Enter the admin key to claim it.", { needKey: true });
     if (!allowSignup(ip)) fail(429, "Too many new players from your network — try again later");
-    const p = { name, elo: 1200, games: 0, wins: 0, losses: 0, draws: 0, token: crypto.randomBytes(16).toString("hex") };
+    const p = { name, elo: 1200, games: 0, wins: 0, losses: 0, draws: 0, token: crypto.randomBytes(16).toString("hex"),
+      createdAt: Date.now(), lastIp: ip };
+    if (isAdminName(name)) p.admin = true;
     players[name] = p;
     tokens.set(p.token, p);
     savePlayers();
@@ -427,6 +560,9 @@ const actions = {
     if (Date.now() - (lastChat.get(me) || 0) < 700) fail(429, "Slow down");
     lastChat.set(me, Date.now());
     g.chat.push({ from: me, text, at: Date.now() });
+    const p = players[me];
+    (p.chatLog || (p.chatLog = [])).unshift({ at: Date.now(), to: color === "w" ? g.black : g.white, text });
+    p.chatLog = p.chatLog.slice(0, 100);
     pushGame(g);
     return {};
   },
@@ -550,37 +686,120 @@ const actions = {
   rename(body, me) {
     const p = players[me];
     const name = String(body.name || "").trim();
-    if (!/^[A-Za-z0-9 _-]{2,20}$/.test(name)) fail(400, "Names are 2–20 letters, numbers, spaces, _ or -");
+    if (!NAME_RULE.test(name)) fail(400, "Names are 2–20 letters, numbers, spaces, _ or -");
     if (name === me) fail(400, "That's already your name");
     const next = (p.nameChangedAt || 0) + NAME_COOLDOWN_MS;
     if (Date.now() < next) fail(429, `You can change your name again on ${new Date(next).toDateString()}`);
     const taken = findPlayer(name);
     if (taken && taken !== p) fail(409, "That name is taken");
+    if (isAdminName(name) && !p.admin) fail(409, "That name is reserved");
     if (activeGameOf(me)) fail(409, "Finish your current game first");
     leaveQueue(me);
     dropChallenges(me);
-
-    const swap = (n) => (n === me ? name : n);
-    delete players[me];
-    p.name = name;
     p.nameChangedAt = Date.now();
-    players[name] = p;
-    for (const other of Object.values(players)) {
-      if (other.friends) other.friends = other.friends.map(swap);
-      if (other.requests) other.requests = other.requests.map(swap);
-    }
-    for (const g of games.values()) {
-      g.white = swap(g.white); g.black = swap(g.black); g.creator = swap(g.creator);
-      if (g.rematch.delete(me)) g.rematch.add(name);
-    }
-    for (const map of [streams, lastSeen, lastChat]) {
-      if (map.has(me)) { map.set(name, map.get(me)); map.delete(me); }
-    }
-    savePlayers();
-    send(name, { type: "me", me: meView(p) });
-    pushFriends(name);
-    pushLobby();
+    renamePlayer(p, name);
     return meView(p);
+  },
+
+  // ---------- admin (only the admin account can call these) ----------
+
+  adminSearch(body, me) {
+    requireAdmin(me);
+    const q = String(body.q || "").trim().toLowerCase();
+    const order = { online: 0, playing: 1, offline: 2 };
+    return {
+      players: Object.values(players)
+        .filter((p) => !q || p.name.toLowerCase().includes(q))
+        .map((p) => ({ ...publicPlayer(p), status: playerStatus(p.name), admin: !!p.admin,
+          banned: !!p.ban, restrictedUntil: p.restriction && p.restriction.until > Date.now() ? p.restriction.until : null }))
+        .sort((a, b) => order[a.status] - order[b.status] || a.name.localeCompare(b.name))
+        .slice(0, 100),
+    };
+  },
+
+  adminPlayer(body, me) {
+    const p = adminTarget(body, me, { notAdmin: false });
+    const g = activeGameOf(p.name);
+    return {
+      name: p.name, elo: Math.round(p.elo), games: p.games, wins: p.wins || 0, losses: p.losses || 0, draws: p.draws || 0,
+      admin: !!p.admin, createdAt: p.createdAt || null, status: playerStatus(p.name),
+      lastSeenAt: online(p.name) ? Date.now() : p.lastSeenAt || lastSeen.get(p.name) || null, lastIp: p.lastIp || null,
+      nameChangedAt: p.nameChangedAt || null,
+      ban: p.ban || null, restriction: p.restriction && p.restriction.until > Date.now() ? p.restriction : null,
+      sanctionLog: p.sanctionLog || [],
+      friends: friendsOf(p.name).filter((n) => players[n]).map((n) => ({ name: n, status: playerStatus(n) })),
+      requests: requestsOf(p.name),
+      history: p.history || [], chatLog: p.chatLog || [],
+      currentGame: g ? { id: g.id, status: g.status, tc: g.tc, white: g.white, black: g.black,
+        moves: g.chess.history().length, pgn: g.chess.pgn(), chat: g.chat.slice(-30) } : null,
+    };
+  },
+
+  adminKick(body, me) {
+    const p = adminTarget(body, me);
+    const reason = String(body.reason || "").trim().slice(0, 200);
+    logSanction(p, "kick", me, { reason });
+    savePlayers();
+    removePlayer(p.name, { kind: "kick", message: `You were kicked by an admin.${reason ? ` Reason: ${reason}` : ""} You can come back by reloading the page.` });
+    return { ok: true };
+  },
+
+  adminBan(body, me) {
+    const p = adminTarget(body, me);
+    const reason = String(body.reason || "").trim().slice(0, 200);
+    const ip = body.blockIp && p.lastIp ? p.lastIp : null;
+    p.ban = { at: Date.now(), by: me, reason, ip };
+    if (ip) bannedIps.add(ip);
+    logSanction(p, "ban", me, { reason, ipBlocked: !!ip });
+    savePlayers();
+    removePlayer(p.name, { kind: "ban", message: sanctionOf(p).message });
+    return { ok: true };
+  },
+
+  adminUnban(body, me) {
+    const p = adminTarget(body, me);
+    if (!p.ban) fail(400, `${p.name} isn't banned`);
+    if (p.ban.ip && !Object.values(players).some((o) => o !== p && o.ban && o.ban.ip === p.ban.ip)) bannedIps.delete(p.ban.ip);
+    delete p.ban;
+    logSanction(p, "unban", me);
+    savePlayers();
+    return { ok: true };
+  },
+
+  adminRestrict(body, me) {
+    const p = adminTarget(body, me);
+    const minutes = Math.round(+body.minutes);
+    if (!(minutes >= 1 && minutes <= 10 * 365 * 24 * 60)) fail(400, "Pick a time between 1 minute and 10 years");
+    const reason = String(body.reason || "").trim().slice(0, 200);
+    p.restriction = { at: Date.now(), by: me, reason, until: Date.now() + minutes * 60_000 };
+    logSanction(p, "restrict", me, { reason, minutes, until: p.restriction.until });
+    savePlayers();
+    removePlayer(p.name, { kind: "restriction", message: sanctionOf(p).message, until: p.restriction.until, reason });
+    return { ok: true, until: p.restriction.until };
+  },
+
+  adminUnrestrict(body, me) {
+    const p = adminTarget(body, me);
+    if (!p.restriction) fail(400, `${p.name} isn't restricted`);
+    delete p.restriction;
+    logSanction(p, "unrestrict", me);
+    savePlayers();
+    return { ok: true };
+  },
+
+  adminRename(body, me) {
+    const p = adminTarget(body, me, { notAdmin: false });
+    const name = String(body.newName || "").trim();
+    if (!NAME_RULE.test(name)) fail(400, "Names are 2–20 letters, numbers, spaces, _ or -");
+    if (name === p.name) fail(400, "That's already their name");
+    const taken = findPlayer(name);
+    if (taken && taken !== p) fail(409, "That name is taken");
+    if (isAdminName(name) && !p.admin) fail(409, "That name is reserved");
+    const old = p.name;
+    logSanction(p, "rename", me, { from: old, to: name });
+    renamePlayer(p, name);
+    if (old !== me) send(name, { type: "notice", text: `An admin changed your name from ${old} to ${name}.` });
+    return { ok: true, name };
   },
 
   leave(body, me) {
@@ -614,6 +833,8 @@ function serveStatic(req, res) {
 function openStream(req, res, url) {
   const me = byToken(url.searchParams.get("token"));
   if (!me) { res.writeHead(401); return res.end(); }
+  if (sanctionOf(me)) { res.writeHead(403); return res.end(); }
+  me.lastSeenAt = Date.now();
   // X-Accel-Buffering stops reverse proxies on hosting platforms from holding events back
   res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive", "X-Accel-Buffering": "no" });
   res.write(`data: ${JSON.stringify({ type: "me", me: meView(me) })}\n\n`);
@@ -631,6 +852,7 @@ function openStream(req, res, url) {
     streams.get(me.name).delete(res);
     if (!online(me.name)) {
       lastSeen.set(me.name, Date.now());
+      me.lastSeenAt = Date.now();
       queue.delete(me.name);
       dropChallenges(me.name);
       pushFriends(me.name);
@@ -666,10 +888,14 @@ http.createServer((req, res) => {
         const me = byToken(req.headers["x-token"]);
         if (action !== actions.login && !me) fail(401, "Log in first");
         const ip = String(req.headers["x-forwarded-for"] || req.socket.remoteAddress).split(",")[0].trim();
+        if (me && action !== actions.login) {
+          refuseIfSanctioned(me);
+          me.lastIp = ip;
+        }
         reply(200, action(data, me && me.name, ip));
       } catch (err) {
         if (!(err instanceof HttpError)) console.error(err);
-        reply(err.status || 500, { error: err instanceof HttpError ? err.message : "Server error" });
+        reply(err.status || 500, err instanceof HttpError ? { error: err.message, ...err.extra } : { error: "Server error" });
       }
     });
     return;
@@ -679,6 +905,7 @@ http.createServer((req, res) => {
   console.log(`Elo Ladder running:`);
   console.log(`  this computer:  http://localhost:${PORT}`);
   for (const ip of lanAddresses()) console.log(`  same Wi-Fi:      http://${ip}:${PORT}`);
+  console.log(`  admin account:  ${ADMIN_NAME} (key for new devices is in ${path.relative(ROOT, ADMIN_KEY_FILE)})`);
 });
 
 function lanAddresses() {

@@ -124,3 +124,21 @@ a.btn:hover { border-color: var(--accent); }
 /* friends */
 #challengeIn .banner { flex-wrap: wrap; }
 .seek .who { display: block; }
+
+/* admin */
+.admin { display: grid; grid-template-columns: 240px 1fr; gap: 16px; margin-top: 12px; align-items: start; }
+.admin .list { max-height: 520px; overflow-y: auto; }
+.seek.pick { text-align: left; cursor: pointer; width: 100%; }
+.seek.pick.on { border-color: var(--accent); background: #22324a; }
+.tag { font-size: 11px; padding: 1px 6px; border-radius: 99px; background: var(--line); margin-left: 4px; white-space: nowrap; }
+.tag.bad { background: var(--loss); color: #fff; }
+.tag.warn { background: #e0a030; color: #000; }
+.tag.ok { background: #2d8a5f; color: #fff; }
+.kv { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin: 12px 0; }
+.kv > div { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; display: grid; gap: 2px; }
+#adminDetail h3 { margin: 16px 0 6px; font-size: 14px; color: var(--dim); text-transform: uppercase; letter-spacing: .04em; }
+#adminDetail .actions { display: grid; gap: 8px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
+.scroll { max-height: 260px; overflow-y: auto; }
+button.danger { background: var(--loss); border-color: var(--loss); color: #fff; }
+body.is-admin .pname { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+@media (max-width: 760px) { .admin { grid-template-columns: 1fr; } .admin .list { max-height: 200px; } }

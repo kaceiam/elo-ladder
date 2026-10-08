@@ -38,9 +38,8 @@
             <div class="dim" id="myGames" style="margin-top: 4px"></div>
           </div>
         </div>
-        <div class="row" style="margin-top: 12px">
-          <input type="text" id="myName" placeholder="Your name" maxlength="20">
-        </div>
+        <div id="nameBox" style="margin-top: 12px"></div>
+        <div class="err" id="nameErr"></div>
       </section>
       <section>
         <h2>Invite a friend anywhere</h2>
@@ -87,7 +86,8 @@
   <section id="join" hidden>
     <h2>You've been invited to a game</h2>
     <form id="joinForm" class="row">
-      <input type="text" id="joinName" placeholder="Your name" maxlength="20" required>
+      <input type="text" id="joinName" placeholder="Pick your name" maxlength="20">
+      <span id="joinAs" hidden></span>
       <button class="primary">Join game</button>
     </form>
     <p class="dim" id="joinStatus"></p>
@@ -175,7 +175,7 @@
     $("myRank").textContent = rankOf(profile.elo);
     $("myRank").className = `rank ${rankOf(profile.elo)}`;
     $("myGames").textContent = `${profile.games} friend games`;
-    $("myName").value = profile.name;
+    renderName();
     const word = { 1: "Won", 0.5: "Draw", 0: "Lost" };
     $("history").innerHTML = profile.history.length ? profile.history.map((h) => `
       <tr><td>${esc(h.opp)} <span class="dim">(${h.oppElo})</span></td><td>${h.color === "w" ? "White" : "Black"}</td>
@@ -184,11 +184,60 @@
       : `<tr><td colspan="5" class="empty">No friend games yet.</td></tr>`;
   }
 
-  function setName(name) {
-    profile.name = String(name || "").trim().slice(0, 20) || `Guest${Math.floor(1000 + Math.random() * 9000)}`;
+  // ---------- name: picked once, then changeable every 180 days ----------
+
+  const NAME_COOLDOWN_MS = 180 * 24 * 3600 * 1000;
+  const NAME_RULE = /^[A-Za-z0-9 _-]{2,20}$/;
+  // Like the online server: the first change is free (fix a typo), then 180 days between changes
+  const nameLocked = () => !!(profile.name && profile.nameSetAt);
+  const nextChangeAt = () => (profile.nameChangedAt || 0) + NAME_COOLDOWN_MS;
+  const canChangeName = () => !nameLocked() || Date.now() >= nextChangeAt();
+  const longDate = (t) => new Date(t).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+
+  function lockName(raw) {
+    const name = String(raw || "").trim();
+    if (!NAME_RULE.test(name)) throw new Error("Names are 2–20 letters, numbers, spaces, _ or -");
+    if (!canChangeName()) throw new Error(`You can change your name again on ${longDate(nextChangeAt())}.`);
+    if (nameLocked()) profile.nameChangedAt = Date.now();
+    else profile.nameSetAt = Date.now();
+    profile.name = name;
     saveProfile();
   }
-  $("myName").addEventListener("change", () => { setName($("myName").value); renderProfile(); });
+
+  function renderName() {
+    if (!nameLocked()) {
+      $("nameBox").innerHTML = `
+        <form class="row" id="pickName">
+          <input type="text" id="nameInput" placeholder="Pick your name" maxlength="20" value="${esc(profile.name || "")}">
+          <button class="primary">Save name</button>
+        </form>
+        <div class="dim small" style="margin-top: 6px">This name stays with you. You can change it once, then only once every 180 days.</div>`;
+      $("pickName").addEventListener("submit", (e) => {
+        e.preventDefault();
+        $("nameErr").textContent = "";
+        try { lockName($("nameInput").value); renderProfile(); } catch (err) { $("nameErr").textContent = err.message; }
+      });
+    } else {
+      const ready = canChangeName();
+      $("nameBox").innerHTML = `
+        <div class="row" style="justify-content: space-between">
+          <div>Playing as <b>${esc(profile.name)}</b></div>
+          <button id="changeName" ${ready ? "" : "disabled"}>Change name</button>
+        </div>
+        <div class="dim small" style="margin-top: 6px">${ready ? "You can change your name now." : `Next name change: ${longDate(nextChangeAt())}`}</div>`;
+      $("changeName").addEventListener("click", () => {
+        $("nameErr").textContent = "";
+        const name = prompt("New name (2–20 letters or numbers):", profile.name);
+        if (name === null || name.trim() === profile.name) return;
+        if (!confirm(`Change your name to "${name.trim()}"? You won't be able to change it again for 180 days.`)) return;
+        try { lockName(name); renderProfile(); } catch (err) { $("nameErr").textContent = err.message; }
+      });
+    }
+    // The invite join form uses the locked name too
+    $("joinName").hidden = nameLocked();
+    $("joinAs").hidden = !nameLocked();
+    $("joinAs").innerHTML = `Joining as <b>${esc(profile.name)}</b>`;
+  }
 
   // ---------- connection ----------
 
@@ -214,9 +263,12 @@
   const newCode = () => Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => "abcdefghjkmnpqrstuvwxyz23456789"[b % 31]).join("");
 
   function createInvite() {
-    setName($("myName").value);
-    renderProfile();
     $("setupErr").textContent = "";
+    if (!nameLocked()) {
+      $("setupErr").textContent = "Pick your name first.";
+      $("nameInput")?.focus();
+      return;
+    }
     role = "host";
     inviteCode = newCode();
     const tc = $("tc").value, color = $("color").value;
@@ -301,8 +353,12 @@
 
   $("joinForm").addEventListener("submit", (e) => {
     e.preventDefault();
-    setName($("joinName").value);
-    renderProfile();
+    $("joinErr").textContent = "";
+    if (!nameLocked()) {
+      if (!confirm(`Play as "${$("joinName").value.trim()}"? This name stays with you — changes are limited to once every 180 days.`)) return;
+      try { lockName($("joinName").value); } catch (err) { $("joinErr").textContent = err.message; return; }
+      renderProfile();
+    }
     joinInvite(location.hash.slice(1));
   });
 
@@ -575,8 +631,6 @@
     $("joinName").value = profile.name;
     show("join");
   } else {
-    if (!profile.name) setName("");
-    renderProfile();
     show("setup");
   }
 </script>

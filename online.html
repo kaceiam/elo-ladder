@@ -21,7 +21,7 @@
       <button class="primary" id="installBtn" hidden>Install app</button>
       <button id="phoneBtn">📱 Phone</button>
       <a class="btn" href="bots.html">Play bots</a>
-      <button id="logout" hidden>Switch player</button>
+      <button id="changeName" hidden>Change name</button>
     </div>
   </div>
 
@@ -103,6 +103,7 @@
           <div>
             <span class="rank" id="meRank"></span>
             <div class="dim" id="meGames" style="margin-top: 4px"></div>
+            <div class="dim small" id="meNameNote"></div>
           </div>
         </div>
       </section>
@@ -233,7 +234,7 @@
 
   function show(section) {
     for (const id of ["noServer", "login", "lobby", "play"]) $(id).hidden = id !== section;
-    $("logout").hidden = !me;
+    $("changeName").hidden = !me;
   }
 
   async function api(action, body = {}) {
@@ -264,18 +265,35 @@
   $("loginForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     $("loginErr").textContent = "";
-    try { await login($("loginName").value.trim()); }
+    const name = $("loginName").value.trim();
+    if (!confirm(`Play as "${name}"? This name stays with you — changes are limited to once every 180 days.`)) return;
+    try { await login(name); }
     catch (err) { $("loginErr").textContent = err.message; }
   });
 
-  $("logout").addEventListener("click", () => {
-    if (view && view.status === "playing" && !confirm("You're in a game — leaving for over a minute counts as a loss. Switch anyway?")) return;
-    es && es.close();
-    store.set(CURRENT_KEY, null);
-    token = me = view = null;
-    $("loginName").value = "";
-    show("login");
+  // Names are permanent, with one change allowed every 180 days (the server enforces it)
+  const longDate = (t) => new Date(t).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+
+  $("changeName").addEventListener("click", async () => {
+    if (me.nextNameChange && Date.now() < me.nextNameChange) {
+      alert(`You can change your name again on ${longDate(me.nextNameChange)}.`);
+      return;
+    }
+    const name = prompt("New name (2–20 letters or numbers):", me.name);
+    if (name === null || name.trim() === me.name) return;
+    if (!confirm(`Change your name to "${name.trim()}"? You won't be able to change it again for 180 days.`)) return;
+    try { await api("rename", { name: name.trim() }); }
+    catch (err) { alert(err.message); }
   });
+
+  // Keep this device's saved login pointing at the current name after a rename
+  function rememberName(name) {
+    const tokens = store.get(TOKENS_KEY, {});
+    for (const k of Object.keys(tokens)) if (tokens[k] === token && k !== name) delete tokens[k];
+    tokens[name] = token;
+    store.set(TOKENS_KEY, tokens);
+    store.set(CURRENT_KEY, name);
+  }
 
   // ---------- live connection ----------
 
@@ -292,6 +310,7 @@
   function handle(msg) {
     if (msg.type === "me") {
       me = msg.me;
+      rememberName(me.name);
       renderMe();
       if (pendingJoin && !handle.joined) {
         handle.joined = true;
@@ -434,6 +453,7 @@
     $("meElo").textContent = me.elo;
     $("meRank").outerHTML = `<span class="rank ${rankOf(me.elo)}" id="meRank">${rankOf(me.elo)}</span>`;
     $("meGames").textContent = `${me.games} rated games`;
+    $("meNameNote").textContent = me.nextNameChange && Date.now() < me.nextNameChange ? `Next name change: ${longDate(me.nextNameChange)}` : "";
   }
 
   function renderLobby() {

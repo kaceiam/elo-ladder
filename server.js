@@ -38,6 +38,9 @@ function savePlayers() {
 const tokens = new Map(Object.values(players).map((p) => [p.token, p]));
 const byToken = (token) => token && tokens.get(token);
 const publicPlayer = (p) => ({ name: p.name, elo: Math.round(p.elo), games: p.games });
+const NAME_COOLDOWN_MS = 180 * 24 * 3600 * 1000;
+// What a player sees about themselves
+const meView = (p) => ({ ...publicPlayer(p), nameChangedAt: p.nameChangedAt || null, nextNameChange: p.nameChangedAt ? p.nameChangedAt + NAME_COOLDOWN_MS : null });
 
 // ---------- connections ----------
 
@@ -312,6 +315,9 @@ const lastChat = new Map(); // name -> time of last chat message
 
 const actions = {
   login(body, me, ip) {
+    // A device that already has an account stays that account (even if it was renamed)
+    const owner = body.token && tokens.get(body.token);
+    if (owner) return { ...publicPlayer(owner), token: owner.token };
     const name = String(body.name || "").trim();
     if (!/^[A-Za-z0-9 _-]{2,20}$/.test(name)) fail(400, "Names are 2–20 letters, numbers, spaces, _ or -");
     const key = Object.keys(players).find((k) => k.toLowerCase() === name.toLowerCase());
@@ -540,6 +546,43 @@ const actions = {
     return {};
   },
 
+  // Names are permanent except for one change every 180 days
+  rename(body, me) {
+    const p = players[me];
+    const name = String(body.name || "").trim();
+    if (!/^[A-Za-z0-9 _-]{2,20}$/.test(name)) fail(400, "Names are 2–20 letters, numbers, spaces, _ or -");
+    if (name === me) fail(400, "That's already your name");
+    const next = (p.nameChangedAt || 0) + NAME_COOLDOWN_MS;
+    if (Date.now() < next) fail(429, `You can change your name again on ${new Date(next).toDateString()}`);
+    const taken = findPlayer(name);
+    if (taken && taken !== p) fail(409, "That name is taken");
+    if (activeGameOf(me)) fail(409, "Finish your current game first");
+    leaveQueue(me);
+    dropChallenges(me);
+
+    const swap = (n) => (n === me ? name : n);
+    delete players[me];
+    p.name = name;
+    p.nameChangedAt = Date.now();
+    players[name] = p;
+    for (const other of Object.values(players)) {
+      if (other.friends) other.friends = other.friends.map(swap);
+      if (other.requests) other.requests = other.requests.map(swap);
+    }
+    for (const g of games.values()) {
+      g.white = swap(g.white); g.black = swap(g.black); g.creator = swap(g.creator);
+      if (g.rematch.delete(me)) g.rematch.add(name);
+    }
+    for (const map of [streams, lastSeen, lastChat]) {
+      if (map.has(me)) { map.set(name, map.get(me)); map.delete(me); }
+    }
+    savePlayers();
+    send(name, { type: "me", me: meView(p) });
+    pushFriends(name);
+    pushLobby();
+    return meView(p);
+  },
+
   leave(body, me) {
     // Stop following a finished game
     const g = games.get(body.id);
@@ -573,7 +616,7 @@ function openStream(req, res, url) {
   if (!me) { res.writeHead(401); return res.end(); }
   // X-Accel-Buffering stops reverse proxies on hosting platforms from holding events back
   res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive", "X-Accel-Buffering": "no" });
-  res.write(`data: ${JSON.stringify({ type: "me", me: publicPlayer(me) })}\n\n`);
+  res.write(`data: ${JSON.stringify({ type: "me", me: meView(me) })}\n\n`);
   if (!streams.has(me.name)) streams.set(me.name, new Set());
   streams.get(me.name).add(res);
   const g = activeGameOf(me.name);

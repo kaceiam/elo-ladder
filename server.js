@@ -552,11 +552,11 @@ const actions = {
 // ---------- http ----------
 
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
-  ".wasm": "application/wasm", ".json": "application/json", ".webmanifest": "application/manifest+json", ".png": "image/png", ".svg": "image/svg+xml", ".ico": "image/x-icon" };
+  ".wasm": "application/wasm", ".json": "application/json", ".webmanifest": "application/manifest+json", ".txt": "text/plain; charset=utf-8", ".xml": "application/xml", ".png": "image/png", ".svg": "image/svg+xml", ".ico": "image/x-icon" };
 
 function serveStatic(req, res) {
   let rel = decodeURIComponent(new URL(req.url, "http://x").pathname);
-  if (rel === "/") rel = "/online.html";
+  if (rel === "/") rel = "/index.html";
   const file = path.join(ROOT, path.normalize(rel));
   if (!file.startsWith(ROOT + path.sep) || file.startsWith(DATA_DIR) || file === __filename) {
     res.writeHead(404); return res.end("Not found");

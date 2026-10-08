@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://kaceiam.github.io/elo-ladder/sitemap.xml

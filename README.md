@@ -1,6 +1,6 @@
 # Elo Ladder
 
-**Play now:** https://kaceiam.github.io/elo-ladder/ — bots, or invite a friend anywhere with a link (`friend.html`).
+**Play now:** https://kaceiam.github.io/elo-ladder/ — free chess bots, friend invites, and an installable app.
 
 Chess with Elo ratings. Play rated games online against random opponents or
 friends, or practice against seven bots from 400 to 2800.
@@ -8,7 +8,7 @@ friends, or practice against seven bots from 400 to 2800.
 - **Online** (`/`): quick play pairs you with someone near your rating; or
   create a game and send a friend the link. Clocks, chat, draw offers, rematch
   and a shared leaderboard.
-- **Bots** (`/index.html`): Stockfish 18 plays at each bot's rating. If you run
+- **Bots** (`/bots.html`): Stockfish 18 plays at each bot's rating. If you run
   [Ollama](https://ollama.com) on your own computer, the bots also talk.
 
 ## Run locally

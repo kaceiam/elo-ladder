@@ -1,0 +1,661 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Elo Ladder Online</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#14161b">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="app.css"></head>
+<body>
+<main>
+  <div class="row" style="justify-content: space-between">
+    <h1>Elo Ladder Online</h1>
+    <div class="row">
+      <button class="primary" id="installBtn" hidden>Install app</button>
+      <button id="phoneBtn">📱 Phone</button>
+      <a class="btn" href="index.html">Play bots</a>
+      <button id="logout" hidden>Switch player</button>
+    </div>
+  </div>
+
+  <section id="phone" hidden>
+    <div class="row" style="justify-content: space-between">
+      <h2 style="margin: 0">Play on your phone</h2>
+      <button id="phoneClose">Close</button>
+    </div>
+    <div class="phone">
+      <a id="qrLink" class="qr" target="_blank" rel="noopener"></a>
+      <div>
+        <ol>
+          <li>Point your phone's camera at the code and tap the link that pops up.</li>
+          <li>Install it like an app:
+            <div class="dim"><b>iPhone</b> (Safari): tap Share <span aria-hidden="true">⎙</span> → <b>Add to Home Screen</b>.</div>
+            <div class="dim"><b>Android</b> (Chrome): tap ⋮ → <b>Install app</b> or <b>Add to Home screen</b>.</div>
+          </li>
+          <li>Open it from your home screen and hit a quick-play button — you'll be matched with anyone else playing.</li>
+        </ol>
+        <div class="dim" style="overflow-wrap: anywhere">Link: <a id="qrText" target="_blank" rel="noopener"></a></div>
+        <div class="banner" id="wifiNote" hidden style="margin-top: 10px">This link works for phones on <b>the same Wi-Fi</b> as this computer, while the game window is open.</div>
+      </div>
+    </div>
+  </section>
+
+  <div id="challengeIn" class="list" hidden></div>
+
+  <section id="noServer" hidden>
+    <div id="noServerLocal">
+      <h2>Server not running</h2>
+      <p>Online play needs the game server, and it isn't running. Live Server can't run it.</p>
+      <p>Double-click <b>start.cmd</b> in the <code>elo</code> folder and keep its black window open while you play.
+        Then open <a href="http://localhost:8080/">http://localhost:8080</a> (it should open by itself).</p>
+      <button class="primary" onclick="location.reload()">I started it — try again</button>
+    </div>
+    <div id="noServerPublic" hidden>
+      <h2>Online play isn't available here</h2>
+      <p>This copy of the site can't host live games against other people yet. You can still play the bots.</p>
+      <a class="btn primary" href="index.html">Play the bots</a>
+    </div>
+  </section>
+
+  <section id="login" hidden>
+    <h2>Pick a name</h2>
+    <form id="loginForm" class="row">
+      <input type="text" id="loginName" placeholder="Your name" maxlength="20" required>
+      <button class="primary">Play</button>
+    </form>
+    <div class="err" id="loginErr"></div>
+  </section>
+
+  <div id="lobby" hidden>
+    <section class="quick" style="margin-bottom: 16px">
+      <h2>Play a random opponent</h2>
+      <div id="quickPick">
+        <div class="tcs" id="tcs"></div>
+        <div class="dim" style="margin-top: 8px">You'll be paired with someone close to your rating. Rated.</div>
+      </div>
+      <div id="searching" class="banner" hidden>
+        <div class="row" style="justify-content: space-between">
+          <div><b class="thinking" id="searchText">Searching for an opponent</b>
+            <div class="dim" id="searchSub"></div></div>
+          <button id="cancelSearch">Cancel</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="grid2">
+      <section>
+        <div class="me">
+          <div>
+            <div class="dim" id="meName"></div>
+            <div class="elo" id="meElo"></div>
+          </div>
+          <div>
+            <span class="rank" id="meRank"></span>
+            <div class="dim" id="meGames" style="margin-top: 4px"></div>
+          </div>
+        </div>
+      </section>
+      <section>
+        <h2>Invite by link</h2>
+        <div class="row">
+          <select id="tc" style="flex: 0 0 auto">
+            <option value="3+2">3 + 2</option>
+            <option value="5+0">5 min</option>
+            <option value="10+0" selected>10 min</option>
+            <option value="15+10">15 + 10</option>
+            <option value="none">No clock</option>
+          </select>
+          <select id="seekColor" style="flex: 0 0 auto">
+            <option value="random">Random color</option>
+            <option value="w">White</option>
+            <option value="b">Black</option>
+          </select>
+          <button id="create">Create game</button>
+        </div>
+        <div class="err" id="lobbyErr"></div>
+      </section>
+    </div>
+
+    <section id="waiting" hidden style="margin-top: 16px">
+      <div class="banner">
+        <b>Waiting for your friend…</b>
+        <div class="dim" style="margin: 6px 0">Send them this link (anyone in the lobby can also join):</div>
+        <div class="row">
+          <input type="text" id="shareLink" readonly>
+          <button id="copyLink">Copy</button>
+          <button id="cancelSeek">Cancel</button>
+        </div>
+      </div>
+    </section>
+
+    <section style="margin-top: 16px">
+      <div class="row" style="justify-content: space-between; margin-bottom: 12px">
+        <h2 style="margin: 0">Friends <span class="dim" id="friendCount" style="text-transform: none; letter-spacing: 0"></span></h2>
+        <label class="dim row" style="gap: 6px">Challenges are
+          <select id="challengeTc" style="flex: 0 0 auto; min-width: 0">
+            <option value="3+2">3 + 2</option>
+            <option value="5+0">5 min</option>
+            <option value="10+0" selected>10 min</option>
+            <option value="15+10">15 + 10</option>
+            <option value="none">No clock</option>
+          </select>
+        </label>
+      </div>
+      <form id="addFriendForm" class="row">
+        <input type="text" id="friendName" placeholder="Add a friend by name" maxlength="20" autocomplete="off">
+        <button>Send request</button>
+      </form>
+      <div class="err" id="friendErr"></div>
+      <div class="list" id="friendRequests"></div>
+      <div class="list" id="friendList" style="margin-top: 8px"></div>
+    </section>
+
+    <div class="grid2" style="margin-top: 16px">
+      <section>
+        <h2>Open games</h2>
+        <div class="list" id="seeks"></div>
+      </section>
+      <section>
+        <h2>Leaderboard <span class="dim" id="onlineCount" style="text-transform: none; letter-spacing: 0"></span></h2>
+        <table>
+          <thead><tr><th>#</th><th>Player</th><th>Rank</th><th class="num">Elo</th><th class="num">Games</th></tr></thead>
+          <tbody id="leaders"></tbody>
+        </table>
+      </section>
+    </div>
+  </div>
+
+  <section id="play" hidden>
+    <div class="game">
+      <div class="boardcol">
+        <div class="player" id="topBar"></div>
+        <div class="board" id="board"></div>
+        <div class="player" id="bottomBar"></div>
+      </div>
+      <div class="side">
+        <div class="status" id="status"></div>
+        <div class="row" id="drawRow" hidden>
+          <span id="drawText"></span>
+          <button class="primary" id="acceptDraw">Accept</button>
+          <button id="declineDraw">Decline</button>
+        </div>
+        <div class="moves" id="moves"></div>
+        <div class="row">
+          <button id="offerDraw">Offer draw</button>
+          <button id="resign">Resign</button>
+          <button class="primary" id="rematch" hidden>Rematch</button>
+          <button id="addOpp" hidden>Add friend</button>
+          <button id="toLobby" hidden>Back to lobby</button>
+        </div>
+        <div class="chat" id="chat"></div>
+        <form class="row" id="chatForm">
+          <input type="text" id="chatText" placeholder="Say something…" maxlength="300" autocomplete="off">
+          <button>Send</button>
+        </form>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="pwa.js"></script>
+<script src="vendor/chess.min.js"></script>
+<script src="elo.js"></script>
+<script src="board.js"></script>
+<script src="vendor/qrcode.min.js"></script>
+<script>
+  const TOKENS_KEY = "elo-online-tokens"; // { name: token } so switching players on one device works
+  const CURRENT_KEY = "elo-online-current";
+  const store = {
+    get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  };
+
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+  const fmt = (n) => `<span class="${n >= 0 ? "up" : "down"}">${n >= 0 ? "+" : ""}${n.toFixed(1)}</span>`;
+  const rankBadge = (elo) => `<span class="rank ${rankOf(elo)}">${rankOf(elo)}</span>`;
+  const TC_LABEL = { "3+2": "3 + 2", "5+0": "5 min", "10+0": "10 min", "15+10": "15 + 10", none: "No clock" };
+
+  let token = null, me = null, lobby = null, view = null, chess = null, myColor = null;
+  let selected = null, receivedAt = 0, es = null;
+  const pendingJoin = new URLSearchParams(location.search).get("join");
+
+  function show(section) {
+    for (const id of ["noServer", "login", "lobby", "play"]) $(id).hidden = id !== section;
+    $("logout").hidden = !me;
+  }
+
+  async function api(action, body = {}) {
+    const res = await fetch(`/api/${action}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-token": token || "" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => null);
+    if (!data) throw new Error("Can't reach the game server — is start.cmd still running?");
+    if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+    return data;
+  }
+
+  // ---------- login ----------
+
+  async function login(name) {
+    const tokens = store.get(TOKENS_KEY, {});
+    const known = Object.keys(tokens).find((k) => k.toLowerCase() === name.toLowerCase());
+    const res = await api("login", { name, token: known ? tokens[known] : undefined });
+    tokens[res.name] = res.token;
+    store.set(TOKENS_KEY, tokens);
+    store.set(CURRENT_KEY, res.name);
+    token = res.token;
+    connect();
+  }
+
+  $("loginForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    $("loginErr").textContent = "";
+    try { await login($("loginName").value.trim()); }
+    catch (err) { $("loginErr").textContent = err.message; }
+  });
+
+  $("logout").addEventListener("click", () => {
+    if (view && view.status === "playing" && !confirm("You're in a game — leaving for over a minute counts as a loss. Switch anyway?")) return;
+    es && es.close();
+    store.set(CURRENT_KEY, null);
+    token = me = view = null;
+    $("loginName").value = "";
+    show("login");
+  });
+
+  // ---------- live connection ----------
+
+  function connect() {
+    es && es.close();
+    es = new EventSource(`/api/events?token=${encodeURIComponent(token)}`);
+    es.onmessage = (e) => handle(JSON.parse(e.data));
+    es.onerror = () => {
+      // CLOSED means the server refused us (e.g. its data was reset); otherwise it retries itself
+      if (es.readyState === EventSource.CLOSED) { me = null; show("login"); $("loginErr").textContent = "Please log in again."; }
+    };
+  }
+
+  function handle(msg) {
+    if (msg.type === "me") {
+      me = msg.me;
+      renderMe();
+      if (pendingJoin && !handle.joined) {
+        handle.joined = true;
+        history.replaceState(null, "", location.pathname);
+        api("join", { id: pendingJoin }).catch((err) => { $("lobbyErr").textContent = err.message; });
+      }
+    } else if (msg.type === "lobby") {
+      lobby = msg;
+      const mine = lobby.leaderboard.find((p) => me && p.name === me.name);
+      if (mine) { me = { ...me, ...mine }; renderMe(); }
+      renderLobby();
+    } else if (msg.type === "game") {
+      setGame(msg.game);
+    } else if (msg.type === "friends") {
+      friendData = msg;
+      renderFriends();
+      renderChallenges();
+      if (view && chess) renderGame();
+    } else if (msg.type === "queue") {
+      queued = msg.queue && { ...msg.queue, localSince: Date.now() };
+      renderQuick();
+    }
+  }
+
+  // ---------- friends ----------
+
+  let friendData = { friends: [], incoming: [], outgoing: [], challenges: [] };
+  const STATUS_TEXT = { online: "Online", playing: "In a game", offline: "Offline" };
+  const isFriend = (name) => friendData.friends.some((f) => f.name === name);
+
+  function renderFriends() {
+    if (!me) return;
+    const { friends, incoming, outgoing, challenges } = friendData;
+    const onlineCount = friends.filter((f) => f.status !== "offline").length;
+    $("friendCount").textContent = friends.length ? `· ${onlineCount} of ${friends.length} online` : "";
+
+    $("friendRequests").innerHTML =
+      incoming.map((p) => `
+        <div class="seek"><div><b>${esc(p.name)}</b> <span class="dim">${p.elo}</span> wants to be friends</div>
+          <div class="row"><button class="primary" data-act="friendAccept" data-name="${esc(p.name)}">Accept</button>
+          <button data-act="friendDecline" data-name="${esc(p.name)}">Decline</button></div></div>`).join("") +
+      outgoing.map((n) => `
+        <div class="seek"><div class="dim">Friend request sent to <b>${esc(n)}</b></div>
+          <button data-act="friendDecline" data-name="${esc(n)}">Cancel</button></div>`).join("");
+
+    $("friendList").innerHTML = friends.map((f) => {
+      const sent = challenges.find((c) => c.from === me.name && c.to === f.name);
+      const action = sent
+        ? `<span class="dim thinking">Waiting for answer</span><button data-act="challengeDecline" data-id="${sent.id}">Cancel</button>`
+        : `<button class="primary" data-act="challenge" data-name="${esc(f.name)}" ${f.status === "online" ? "" : "disabled"}>Challenge</button>`;
+      return `
+        <div class="seek">
+          <div class="who"><span class="dot ${f.status === "online" ? "on" : f.status === "playing" ? "busy" : ""}"></span>
+            <b>${esc(f.name)}</b> <span class="dim">${f.elo}</span> ${rankBadge(f.elo)}
+            <div class="dim small">${STATUS_TEXT[f.status]}</div></div>
+          <div class="row">${action}<button class="x" data-act="friendRemove" data-name="${esc(f.name)}" title="Remove friend">✕</button></div>
+        </div>`;
+    }).join("") || `<div class="empty">No friends yet. Add someone by name, or tap <b>Add friend</b> during a game.</div>`;
+  }
+
+  function renderChallenges() {
+    const inGame = view && view.status === "playing";
+    const incoming = me ? friendData.challenges.filter((c) => c.to === me.name) : [];
+    $("challengeIn").hidden = !incoming.length || inGame || !me;
+    $("challengeIn").innerHTML = incoming.map((c) => `
+      <div class="banner row" style="justify-content: space-between">
+        <div>⚔️ <b>${esc(c.from)}</b> <span class="dim">(${c.fromElo})</span> challenges you to a <b>${TC_LABEL[c.tc]}</b> game</div>
+        <div class="row"><button class="primary" data-act="challengeAccept" data-id="${c.id}">Accept</button>
+          <button data-act="challengeDecline" data-id="${c.id}">Decline</button></div>
+      </div>`).join("");
+  }
+
+  // One handler for every friend/challenge button
+  document.addEventListener("click", async (e) => {
+    const btn = e.target.closest("[data-act]");
+    if (!btn) return;
+    const act = btn.dataset.act, name = btn.dataset.name, id = btn.dataset.id;
+    if (act === "friendRemove" && !confirm(`Remove ${name} from your friends?`)) return;
+    $("friendErr").textContent = "";
+    btn.disabled = true;
+    try {
+      if (act === "challenge") await api("challenge", { name, tc: $("challengeTc").value });
+      else await api(act, id ? { id } : { name });
+    } catch (err) {
+      $("friendErr").textContent = err.message;
+      if ($("lobby").hidden) $("status").textContent = err.message;
+    }
+    btn.disabled = false;
+  });
+
+  $("addFriendForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = $("friendName").value.trim();
+    if (!name) return;
+    $("friendErr").textContent = "";
+    try {
+      const res = await api("friendRequest", { name });
+      $("friendName").value = "";
+      $("friendErr").innerHTML = res.friends ? `<span class="up">You and ${esc(res.name)} are now friends!</span>` : `<span class="dim">Request sent to ${esc(res.name)}.</span>`;
+    } catch (err) { $("friendErr").textContent = err.message; }
+  });
+
+  // ---------- quick play ----------
+
+  const QUICK_TCS = [["3+2", "Blitz"], ["5+0", "Blitz"], ["10+0", "Rapid"], ["15+10", "Rapid"]];
+  let queued = null;
+
+  function renderQuick() {
+    const searching = (lobby && lobby.searching) || {};
+    $("tcs").innerHTML = QUICK_TCS.map(([tc, kind]) => `
+      <button class="tc" data-tc="${tc}"><b>${TC_LABEL[tc]}</b><span class="dim">${kind}</span>
+        <span class="dim small">${searching[tc] ? `${searching[tc]} searching` : "&nbsp;"}</span></button>`).join("");
+    $("quickPick").hidden = !!queued;
+    $("searching").hidden = !queued;
+    if (queued) $("searchText").textContent = `Searching for a ${TC_LABEL[queued.tc]} opponent`;
+    tickSearch();
+  }
+
+  function tickSearch() {
+    if (!queued) return;
+    const s = Math.floor((Date.now() - queued.localSince) / 1000);
+    const range = s >= 20 ? "any rating" : `ratings ${Math.max(0, me.elo - Math.round(100 + s * 20))}–${me.elo + Math.round(100 + s * 20)}`;
+    $("searchSub").textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")} · looking at ${range}`;
+  }
+  setInterval(tickSearch, 500);
+
+  $("tcs").addEventListener("click", async (e) => {
+    const btn = e.target.closest("[data-tc]");
+    if (!btn) return;
+    $("lobbyErr").textContent = "";
+    try { await api("quick", { tc: btn.dataset.tc }); } catch (err) { $("lobbyErr").textContent = err.message; }
+  });
+  $("cancelSearch").addEventListener("click", () => api("unqueue").catch(() => {}));
+
+  // ---------- lobby ----------
+
+  function renderMe() {
+    if (!me) return;
+    $("meName").textContent = me.name;
+    $("meElo").textContent = me.elo;
+    $("meRank").outerHTML = `<span class="rank ${rankOf(me.elo)}" id="meRank">${rankOf(me.elo)}</span>`;
+    $("meGames").textContent = `${me.games} rated games`;
+  }
+
+  function renderLobby() {
+    if (!lobby || !me) return;
+    const colorText = { w: "plays White", b: "plays Black", random: "random color" };
+    const seeks = lobby.open.map((s) => `
+      <div class="seek">
+        <div><b>${esc(s.creator.name)}</b> <span class="dim">${s.creator.elo}</span> ${rankBadge(s.creator.elo)}
+          <div class="dim">${TC_LABEL[s.tc]} · ${colorText[s.color]}</div></div>
+        ${s.creator.name === me.name ? `<span class="dim">Yours</span>` : `<button class="primary" data-join="${s.id}">Join</button>`}
+      </div>`).join("");
+    $("seeks").innerHTML = seeks || `<div class="empty">No open games. Create one and send the link to a friend.</div>`;
+
+    $("onlineCount").textContent = `· ${lobby.online} online · ${lobby.live} playing`;
+    renderQuick();
+    $("leaders").innerHTML = lobby.leaderboard.length ? lobby.leaderboard.map((p, i) => `
+      <tr><td>${i + 1}</td><td><span class="dot ${p.online ? "on" : ""}"></span> ${esc(p.name)}</td><td>${rankBadge(p.elo)}</td>
+      <td class="num">${p.elo}</td><td class="num">${p.games}</td></tr>`).join("")
+      : `<tr><td colspan="5" class="empty">No rated games yet.</td></tr>`;
+  }
+
+  $("seeks").addEventListener("click", async (e) => {
+    const id = e.target.dataset.join;
+    if (!id) return;
+    $("lobbyErr").textContent = "";
+    try { await api("join", { id }); } catch (err) { $("lobbyErr").textContent = err.message; }
+  });
+
+  $("create").addEventListener("click", async () => {
+    $("lobbyErr").textContent = "";
+    try { await api("seek", { tc: $("tc").value, color: $("seekColor").value }); }
+    catch (err) { $("lobbyErr").textContent = err.message; }
+  });
+
+  $("cancelSeek").addEventListener("click", () => view && api("cancel", { id: view.id }).catch(() => {}));
+  $("copyLink").addEventListener("click", () => {
+    $("shareLink").select();
+    navigator.clipboard?.writeText($("shareLink").value).catch(() => {});
+    $("copyLink").textContent = "Copied";
+    setTimeout(() => ($("copyLink").textContent = "Copy"), 1500);
+  });
+
+  // ---------- game ----------
+
+  function setGame(g) {
+    const fresh = !view || !g || view.id !== g.id;
+    view = g;
+    receivedAt = Date.now();
+    renderChallenges();
+    if (!g || g.status === "open") {
+      chess = null;
+      $("waiting").hidden = !g;
+      if (g) $("shareLink").value = `${location.origin}/online.html?join=${g.id}`;
+      show("lobby");
+      return;
+    }
+    chess = new Chess();
+    if (g.pgn) chess.load_pgn(g.pgn);
+    myColor = g.white.name === me.name ? "w" : "b";
+    if (fresh) { selected = null; $("chatText").value = ""; }
+    show("play");
+    renderGame();
+  }
+
+  function playerBar(color) {
+    const p = view[color === "w" ? "white" : "black"];
+    return `<div class="who"><span class="dot ${p.online ? "on" : ""}" title="${p.online ? "Online" : "Offline"}"></span>
+      <b>${esc(p.name)}</b><span class="dim">${p.elo}</span>${rankBadge(p.elo)}</div>
+      <div class="clock" data-clock="${color}"></div>`;
+  }
+
+  function renderGame() {
+    const opp = myColor === "w" ? "b" : "w";
+    $("topBar").innerHTML = playerBar(opp);
+    $("bottomBar").innerHTML = playerBar(myColor);
+    $("board").innerHTML = boardHtml(chess, myColor, selected);
+    $("moves").innerHTML = movesHtml(chess);
+    $("moves").scrollTop = $("moves").scrollHeight;
+    tickClocks();
+
+    const playing = view.status === "playing";
+    const oppName = view[opp === "w" ? "white" : "black"].name;
+    if (playing) {
+      const mine = chess.turn() === myColor;
+      $("status").textContent = mine ? (chess.in_check() ? "You're in check — your move" : "Your move") : `Waiting for ${oppName}`;
+      if (!view[opp === "w" ? "white" : "black"].online) $("status").textContent += ` · ${oppName} disconnected — they lose if not back within a minute`;
+    } else if (view.result === null) {
+      $("status").textContent = `Game ${view.reason}. No rating change.`;
+    } else {
+      const myScore = myColor === "w" ? view.result : 1 - view.result;
+      const word = myScore === 1 ? "You won" : myScore === 0 ? "You lost" : "Draw";
+      const change = view.changes[myColor];
+      const after = view[myColor === "w" ? "white" : "black"].elo;
+      $("status").innerHTML = `${word} by ${esc(view.reason)} · ${fmt(change)} → ${after}`;
+    }
+
+    const theyOffered = playing && view.drawOffer === opp;
+    $("drawRow").hidden = !theyOffered;
+    $("drawText").textContent = `${oppName} offers a draw`;
+    $("offerDraw").hidden = !playing;
+    $("offerDraw").disabled = view.drawOffer === myColor;
+    $("offerDraw").textContent = view.drawOffer === myColor ? "Draw offered" : "Offer draw";
+    $("resign").hidden = !playing;
+    $("resign").textContent = chess.history().length < 2 ? "Abort" : "Resign";
+    $("rematch").hidden = playing || view.result === undefined;
+    $("rematch").disabled = view.rematch.includes(me.name);
+    $("rematch").textContent = view.rematch.includes(me.name) ? "Rematch offered"
+      : view.rematch.includes(oppName) ? `${oppName} wants a rematch — accept` : "Rematch";
+    $("toLobby").hidden = playing;
+    const requested = friendData.outgoing.includes(oppName);
+    $("addOpp").hidden = isFriend(oppName);
+    $("addOpp").disabled = requested;
+    $("addOpp").textContent = requested ? "Friend request sent" : `Add ${oppName} as friend`;
+    $("addOpp").dataset.act = "friendRequest";
+    $("addOpp").dataset.name = oppName;
+
+    $("chat").innerHTML = view.chat.map((c) => `<p><b>${esc(c.from)}:</b> ${esc(c.text)}</p>`).join("")
+      || `<p class="dim">Chat with your opponent here.</p>`;
+    $("chat").scrollTop = $("chat").scrollHeight;
+  }
+
+  const fmtClock = (ms) => {
+    const s = Math.ceil(ms / 1000);
+    return s >= 60 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}` : `0:${String(s).padStart(2, "0")}`;
+  };
+
+  function tickClocks() {
+    if (!view || !chess) return;
+    for (const el of document.querySelectorAll("[data-clock]")) {
+      const c = el.dataset.clock;
+      if (!view.clocks) { el.hidden = true; continue; }
+      const running = view.running && view.status === "playing" && chess.turn() === c;
+      const ms = Math.max(0, view.clocks[c] - (running ? Date.now() - receivedAt : 0));
+      el.textContent = fmtClock(ms);
+      el.className = `clock ${running ? "run" : ""} ${ms < 20000 && view.status === "playing" ? "low" : ""}`;
+    }
+  }
+  setInterval(tickClocks, 200);
+
+  $("board").addEventListener("click", (e) => {
+    if (!view || view.status !== "playing" || chess.turn() !== myColor) return;
+    handleBoardClick(e, chess, myColor, selected, async (mv) => {
+      chess.move(mv); // show it right away, the server confirms
+      renderGame();
+      try { await api("move", { id: view.id, ...mv }); }
+      catch (err) { setGame(view); $("status").textContent = err.message; }
+    }, (sq) => { selected = sq; $("board").innerHTML = boardHtml(chess, myColor, selected); });
+  });
+
+  const act = (action) => () => api(action, { id: view.id }).catch((err) => ($("status").textContent = err.message));
+  $("offerDraw").addEventListener("click", act("draw"));
+  $("acceptDraw").addEventListener("click", act("draw"));
+  $("declineDraw").addEventListener("click", act("decline"));
+  $("rematch").addEventListener("click", act("rematch"));
+  $("resign").addEventListener("click", () => {
+    const abort = chess.history().length < 2;
+    if (confirm(abort ? "Abort this game? It won't be rated." : "Resign this game?")) act("resign")();
+  });
+  $("toLobby").addEventListener("click", act("leave"));
+
+  $("chatForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const text = $("chatText").value.trim();
+    if (!text || !view) return;
+    $("chatText").value = "";
+    api("chat", { id: view.id, text }).catch(() => {});
+  });
+
+  // ---------- start ----------
+
+  // ---------- phone + install ----------
+
+  const isLocal = ["localhost", "127.0.0.1", "[::1]"].includes(location.hostname);
+
+  async function phoneUrl() {
+    // Viewing on a real address already (Wi-Fi IP or a public site)? Share that.
+    if (!isLocal) return { url: `${location.origin}/`, wifi: /^(10|172|192)\./.test(location.hostname) };
+    const { lan } = await fetch("/api/share").then((r) => r.json());
+    return lan.length ? { url: `${lan[0]}/`, wifi: true } : null;
+  }
+
+  $("phoneBtn").addEventListener("click", async () => {
+    $("phone").hidden = false;
+    const info = await phoneUrl().catch(() => null);
+    if (!info) {
+      $("qrLink").innerHTML = "";
+      $("qrText").textContent = "This computer isn't on a network, so phones can't reach it.";
+      return;
+    }
+    const qr = qrcode(0, "M");
+    qr.addData(info.url);
+    qr.make();
+    $("qrLink").innerHTML = qr.createSvgTag({ cellSize: 6, margin: 3, scalable: true });
+    $("qrLink").href = $("qrText").href = info.url;
+    $("qrText").textContent = info.url;
+    $("wifiNote").hidden = !info.wifi;
+    $("phone").scrollIntoView({ behavior: "smooth" });
+  });
+  $("phoneClose").addEventListener("click", () => ($("phone").hidden = true));
+
+  function renderInstall() { $("installBtn").hidden = !window.installApp; }
+  document.addEventListener("installchange", renderInstall);
+  $("installBtn").addEventListener("click", () => window.installApp && window.installApp());
+  // Already running as an installed app: no need to offer the phone QR
+  if (isInstalledApp()) $("phoneBtn").hidden = true;
+
+  const isServer = (base) => fetch(`${base}/api/health`).then((r) => r.json()).then((d) => d.app === "elo-ladder").catch(() => false);
+
+  (async () => {
+    // Opened without the game server (as a file, or via Live Server)? Hop over to it if it's running locally.
+    if (location.protocol === "file:" || !(await isServer(""))) {
+      const local = "http://localhost:8080";
+      if (location.origin !== local && await isServer(local)) return location.replace(`${local}/online.html${location.search}`);
+      // A public static host (like GitHub Pages) has no game server to start
+      const onThisPc = location.protocol === "file:" || isLocal || /^(10|172|192)\./.test(location.hostname);
+      $("noServerLocal").hidden = !onThisPc;
+      $("noServerPublic").hidden = onThisPc;
+      return show("noServer");
+    }
+    const current = store.get(CURRENT_KEY, null);
+    const tokens = store.get(TOKENS_KEY, {});
+    if (current && tokens[current]) {
+      try { await login(current); return; } catch {}
+    }
+    $("loginName").value = `Guest${Math.floor(1000 + Math.random() * 9000)}`;
+    show("login");
+  })();
+</script>
+</body>
+</html>

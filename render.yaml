@@ -1,0 +1,12 @@
+# Render blueprint: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: elo-ladder
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /online.html
+    envVars:
+      - key: NODE_VERSION
+        value: "22"

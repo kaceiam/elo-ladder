@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Elo Ladder</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#14161b">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="app.css"></head>
+<body>
+<main>
+  <div class="row" style="justify-content: space-between">
+    <h1>Elo Ladder</h1>
+    <div class="row">
+      <a class="btn primary" href="online.html" id="onlineLink">Play online</a>
+      <button id="reset">Reset all</button>
+    </div>
+  </div>
+
+  <section>
+    <div class="me">
+      <div>
+        <div class="dim">Your rating</div>
+        <div class="elo" id="myElo">1200</div>
+      </div>
+      <div>
+        <span class="rank" id="myRank"></span>
+        <div class="dim" id="myGames" style="margin-top: 4px"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="setup">
+    <h2>Play a bot</h2>
+    <div class="bots" id="bots"></div>
+    <div class="row" style="margin-top: 12px">
+      <label class="dim">Play as</label>
+      <select id="color" style="flex: 0 0 auto">
+        <option value="w">White</option>
+        <option value="b">Black</option>
+        <option value="r">Random</option>
+      </select>
+      <label class="dim">Model</label>
+      <select id="model"></select>
+      <button class="primary" id="start">Start game</button>
+    </div>
+    <div class="ollama" id="ollama" style="margin-top: 10px"><span class="dot"></span><span id="ollamaText">Checking Ollama…</span></div>
+  </section>
+
+  <section id="play" hidden>
+    <div class="game">
+      <div class="board" id="board"></div>
+      <div class="side">
+        <div class="row" style="justify-content: space-between">
+          <div><b id="oppName"></b> <span class="dim" id="oppElo"></span></div>
+          <span class="rank" id="oppRank"></span>
+        </div>
+        <div class="speech"><div class="who" id="speechWho"></div><div id="speech"></div></div>
+        <div class="status" id="status"></div>
+        <div class="moves" id="moves"></div>
+        <div class="row">
+          <button id="resign">Resign</button>
+          <button id="newGame" class="primary" hidden>Back to bots</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Your games</h2>
+    <table>
+      <thead><tr><th>Opponent</th><th>Color</th><th>Result</th><th class="num">Change</th><th class="num">Rating</th></tr></thead>
+      <tbody id="games"></tbody>
+    </table>
+  </section>
+
+  <div class="grid2">
+    <section>
+      <h2>Add player</h2>
+      <form id="addForm" class="row">
+        <input type="text" id="name" placeholder="Name" required>
+        <input type="number" id="startElo" value="1200" min="0" max="30000" title="Starting Elo">
+        <button class="primary">Add</button>
+      </form>
+    </section>
+
+    <section>
+      <h2>Record match</h2>
+      <div class="row">
+        <select id="pa"></select>
+        <span class="empty">vs</span>
+        <select id="pb"></select>
+      </div>
+      <div class="row" style="margin-top: 8px">
+        <button data-result="1">Left wins</button>
+        <button data-result="0.5">Draw</button>
+        <button data-result="0">Right wins</button>
+      </div>
+      <div class="err" id="err"></div>
+    </section>
+  </div>
+
+  <section>
+    <h2>Leaderboard</h2>
+    <table>
+      <thead><tr><th>#</th><th>Player</th><th>Rank</th><th class="num">Elo</th><th class="num">Games</th><th class="num">K</th><th></th></tr></thead>
+      <tbody id="board-table"></tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>History</h2>
+    <table>
+      <thead><tr><th>Match</th><th>Result</th><th class="num">Change</th></tr></thead>
+      <tbody id="history"></tbody>
+    </table>
+  </section>
+</main>
+
+<script src="pwa.js"></script>
+<script src="vendor/chess.min.js"></script>
+<script src="elo.js"></script>
+<script src="board.js"></script>
+<script src="bots.js"></script>
+<script>
+  const KEY = "elo-ladder-v1";
+  const fresh = () => ({ players: [], history: [], nextId: 1, me: { elo: 1200, games: 0 }, games: [], current: null, botId: "maple", model: "" });
+  let state = fresh();
+  try { state = { ...state, ...JSON.parse(localStorage.getItem(KEY)) }; } catch {}
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} };
+
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+  const fmt = (n) => `<span class="${n >= 0 ? "up" : "down"}">${n >= 0 ? "+" : ""}${n.toFixed(1)}</span>`;
+  const byId = (id) => state.players.find((p) => p.id === id);
+  const botById = (id) => BOTS.find((b) => b.id === id);
+
+  // ---------- profile + bot picker ----------
+
+  function renderMe() {
+    $("myElo").textContent = Math.round(state.me.elo);
+    $("myRank").textContent = rankOf(state.me.elo);
+    $("myRank").className = `rank ${rankOf(state.me.elo)}`;
+    $("myGames").textContent = `${state.me.games} games · K ${kFactor(state.me)}`;
+
+    const resultText = { 1: "Won", 0.5: "Draw", 0: "Lost" };
+    $("games").innerHTML = state.games.length ? state.games.map((g) => `
+      <tr><td>${esc(g.bot)} <span class="dim">(${g.botElo})</span></td><td>${g.color === "w" ? "White" : "Black"}</td>
+      <td>${resultText[g.result]}${g.reason ? ` <span class="dim">· ${esc(g.reason)}</span>` : ""}</td>
+      <td class="num">${fmt(g.change)}</td><td class="num">${Math.round(g.after)}</td></tr>`).join("")
+      : `<tr><td colspan="5" class="empty">No games yet.</td></tr>`;
+  }
+
+  function renderBots() {
+    $("bots").innerHTML = BOTS.map((b) => `
+      <button class="bot ${b.id === state.botId ? "on" : ""}" data-bot="${b.id}">
+        <b>${b.name}</b><span class="dim">${b.elo}</span><span class="rank ${rankOf(b.elo)}">${rankOf(b.elo)}</span>
+      </button>`).join("");
+  }
+
+  $("bots").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-bot]");
+    if (!btn) return;
+    state.botId = btn.dataset.bot;
+    save(); renderBots();
+  });
+
+  async function checkOllama() {
+    try {
+      const models = await listModels();
+      if (!models.length) throw new Error("no models pulled");
+      if (!models.includes(state.model)) state.model = models[0];
+      $("model").innerHTML = models.map((m) => `<option>${esc(m)}</option>`).join("");
+      $("model").value = state.model;
+      $("ollama").className = "ollama ok";
+      $("ollamaText").textContent = `Ollama connected — Stockfish plays, ${state.model} gives the bots their personalities`;
+    } catch (err) {
+      state.model = "";
+      $("model").innerHTML = `<option value="">(no chat)</option>`;
+      $("ollama").className = "ollama";
+      $("ollamaText").textContent = `Ollama not reachable (${err.message}). Bots still play at full strength, they just won't talk.`;
+    }
+  }
+
+  $("model").addEventListener("change", () => {
+    state.model = $("model").value;
+    $("ollamaText").textContent = `Ollama connected — Stockfish plays, ${state.model} gives the bots their personalities`;
+    save();
+  });
+
+  // ---------- chess game ----------
+
+  let game = null, bot = null, myColor = "w", selected = null, thinking = false, over = false;
+
+  function startGame() {
+    bot = botById(state.botId);
+    const pick = $("color").value;
+    myColor = pick === "r" ? (Math.random() < .5 ? "w" : "b") : pick;
+    game = new Chess();
+    state.current = { botId: bot.id, color: myColor, pgn: "" };
+    save();
+    openGame(`${bot.name} sits down across from you.`);
+  }
+
+  function resumeGame() {
+    bot = botById(state.current.botId);
+    myColor = state.current.color;
+    game = new Chess();
+    if (state.current.pgn) game.load_pgn(state.current.pgn);
+    openGame("Picking up where you left off.");
+  }
+
+  function openGame(line) {
+    over = false; selected = null;
+    $("setup").hidden = true;
+    $("play").hidden = false;
+    $("resign").hidden = false;
+    $("newGame").hidden = true;
+    $("oppName").textContent = bot.name;
+    $("oppElo").textContent = bot.elo;
+    $("oppRank").textContent = rankOf(bot.elo);
+    $("oppRank").className = `rank ${rankOf(bot.elo)}`;
+    say(line);
+    renderBoard();
+    if (!game.history().length) talk(() => botGreeting(bot, state.model, myColor === "w" ? "b" : "w"));
+    maybeBotTurn();
+  }
+
+  function say(text) {
+    $("speechWho").textContent = bot.name;
+    $("speech").textContent = text || "…";
+  }
+
+  function renderBoard() {
+    $("board").innerHTML = boardHtml(game, myColor, selected);
+    $("moves").innerHTML = movesHtml(game);
+    $("moves").scrollTop = $("moves").scrollHeight;
+
+    if (!over) {
+      const mine = game.turn() === myColor;
+      $("status").className = `status ${mine ? "" : "thinking"}`;
+      $("status").textContent = mine ? (game.in_check() ? "You're in check — your move" : "Your move") : `${bot.name} is thinking`;
+    }
+  }
+
+  $("board").addEventListener("click", (e) => {
+    if (over || thinking || game.turn() !== myColor) return;
+    handleBoardClick(e, game, myColor, selected,
+      (mv) => { game.move(mv); afterMove(); },
+      (sq) => { selected = sq; renderBoard(); });
+  });
+
+  function afterMove() {
+    state.current.pgn = game.pgn();
+    save();
+    renderBoard();
+    if (!checkGameOver()) maybeBotTurn();
+  }
+
+  async function maybeBotTurn() {
+    if (over || game.turn() === myColor || thinking) return;
+    thinking = true;
+    renderBoard();
+    // Let the "thinking" status paint before the engine search blocks the page
+    await new Promise((r) => setTimeout(r, 400));
+    let score = null;
+    try {
+      const res = await botMove(bot, game);
+      score = res.score;
+      game.move({ from: res.move.from, to: res.move.to, promotion: res.move.promotion || "q" });
+    } catch (err) {
+      console.error(err);
+      $("status").className = "status";
+      $("status").textContent = `${bot.name} couldn't move: ${err.message}. Reload to retry.`;
+      thinking = false;
+      return;
+    }
+    thinking = false;
+    afterMove();
+    talk(() => botComment(bot, state.model, game, score));
+  }
+
+  // Ollama chatter runs alongside the game and never holds up a move
+  let talkId = 0;
+  function talk(ask) {
+    if (!state.model) return;
+    const id = ++talkId, forBot = bot;
+    ask().then((line) => { if (id === talkId && forBot === bot && line) say(line); })
+      .catch((err) => console.warn("Ollama:", err.message));
+  }
+
+  function checkGameOver() {
+    if (!game.game_over()) return false;
+    let result, reason;
+    if (game.in_checkmate()) {
+      result = game.turn() === myColor ? 0 : 1;
+      reason = "checkmate";
+    } else {
+      result = 0.5;
+      reason = game.in_stalemate() ? "stalemate" : game.in_threefold_repetition() ? "repetition"
+        : game.insufficient_material() ? "insufficient material" : "50-move rule";
+    }
+    finishGame(result, reason);
+    return true;
+  }
+
+  function finishGame(result, reason) {
+    over = true;
+    // Bots keep a fixed rating, like Chess.com's — only you move
+    const [change] = recordMatch(state.me, { elo: bot.elo, games: 1000 }, result);
+    state.games.unshift({ bot: bot.name, botElo: bot.elo, color: myColor, result, reason, change, after: state.me.elo });
+    state.current = null;
+    save();
+
+    const word = result === 1 ? "You won" : result === 0 ? "You lost" : "Draw";
+    $("status").className = "status";
+    $("status").innerHTML = `${word} by ${esc(reason)} · ${fmt(change)} → ${Math.round(state.me.elo)}`;
+    $("resign").hidden = true;
+    $("newGame").hidden = false;
+    renderBoard();
+    renderMe();
+  }
+
+  $("start").addEventListener("click", startGame);
+  $("resign").addEventListener("click", () => {
+    if (!over && confirm("Resign this game?")) finishGame(0, "resignation");
+  });
+  $("newGame").addEventListener("click", () => {
+    $("play").hidden = true;
+    $("setup").hidden = false;
+  });
+
+  // ---------- manual ladder ----------
+
+  function renderLadder() {
+    const sorted = [...state.players].sort((a, b) => b.elo - a.elo);
+    $("board-table").innerHTML = sorted.length ? sorted.map((p, i) => `
+      <tr><td>${i + 1}</td><td>${esc(p.name)}</td>
+      <td><span class="rank ${rankOf(p.elo)}">${rankOf(p.elo)}</span></td>
+      <td class="num">${Math.round(p.elo)}</td><td class="num">${p.games}</td><td class="num">${kFactor(p)}</td>
+      <td class="num"><button class="x" data-del="${p.id}" title="Remove">✕</button></td></tr>`).join("")
+      : `<tr><td colspan="7" class="empty">No players yet.</td></tr>`;
+
+    $("history").innerHTML = state.history.length ? state.history.map((h) => {
+      const label = h.result === 1 ? `${esc(h.a)} won` : h.result === 0 ? `${esc(h.b)} won` : "Draw";
+      return `<tr><td>${esc(h.a)} vs ${esc(h.b)}</td><td>${label}</td><td class="num">${fmt(h.ca)} / ${fmt(h.cb)}</td></tr>`;
+    }).join("") : `<tr><td colspan="3" class="empty">No matches yet.</td></tr>`;
+
+    for (const [sel, pick] of [["pa", 0], ["pb", 1]]) {
+      const prev = $(sel).value;
+      $(sel).innerHTML = state.players.map((p) => `<option value="${p.id}">${esc(p.name)} (${Math.round(p.elo)})</option>`).join("");
+      if (byId(+prev)) $(sel).value = prev;
+      else if (state.players[pick]) $(sel).value = state.players[pick].id;
+    }
+  }
+
+  $("addForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const name = $("name").value.trim();
+    const elo = Math.max(0, Math.min(+$("startElo").value || 1200, 30000));
+    if (!name) return;
+    state.players.push({ id: state.nextId++, name, elo, games: 0 });
+    $("name").value = "";
+    save(); renderLadder();
+  });
+
+  document.querySelectorAll("[data-result]").forEach((btn) => btn.addEventListener("click", () => {
+    const a = byId(+$("pa").value), b = byId(+$("pb").value);
+    $("err").textContent = "";
+    if (!a || !b) return ($("err").textContent = "Add at least two players.");
+    if (a === b) return ($("err").textContent = "Pick two different players.");
+    const result = +btn.dataset.result;
+    const [ca, cb] = recordMatch(a, b, result);
+    state.history.unshift({ a: a.name, b: b.name, result, ca, cb });
+    save(); renderLadder();
+  }));
+
+  $("board-table").addEventListener("click", (e) => {
+    const id = +e.target.dataset.del;
+    if (!id || !confirm(`Remove ${byId(id).name}?`)) return;
+    state.players = state.players.filter((p) => p.id !== id);
+    save(); renderLadder();
+  });
+
+  $("reset").addEventListener("click", () => {
+    if (!confirm("Delete your rating, all games, players and history?")) return;
+    state = { ...fresh(), model: state.model };
+    save();
+    location.reload();
+  });
+
+  renderMe();
+  renderBots();
+  renderLadder();
+  checkOllama();
+  if (state.current && botById(state.current.botId)) resumeGame();
+</script>
+</body>
+</html>

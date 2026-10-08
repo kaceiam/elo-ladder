@@ -1,0 +1,14 @@
+{
+  "name": "elo-ladder",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Chess with Elo ratings: Stockfish bots and online multiplayer",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "GPL-3.0"
+}

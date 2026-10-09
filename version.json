@@ -1,13 +1,12 @@
 {
-  "version": 4,
-  "title": "Square names on the board",
+  "version": 5,
+  "title": "Cooler board, rating changer and a brand-new home screen",
   "notes": [
-    "Every square now shows its name â€” a1 to h8 â€” so you can always see where e4, f7 and the rest are.",
-    "Hover (or tap) a square name or a move like Nf3 in a lesson or the move list, and that square lights up on the board.",
-    "New \"â“ How to read e4, Nf3â€¦\" button explains chess notation: piece letters, x for captures, + for check, # for mate, O-O for castling.",
-    "Prefer a clean board? Use \"ðŸ”¤ Hide square names\" under any board."
+    "🎨 Board styles: pick from 8 looks — Classic wood, Tournament green, Ocean, Midnight, Marble, Candy, Sunset and glowing Neon. Tap \"Board style\" under any board.",
+    "The board got a 3D frame, bigger pieces with shadows, and moves now slide smoothly across the board.",
+    "✏️ Change my rating: set your rating for bot and friend games — pick a level or type an exact number.",
+    "A brand-new home screen with a live board replaying famous games like Morphy's Opera Game."
   ],
   "countdown": 60,
-  "date": "2026-10-09",
-  "upcoming": { "version": 5, "title": "Cooler board, rating changer and a brand-new home screen", "eta": "2026-10-09T20:55:04Z" }
+  "date": "2026-10-09"
 }

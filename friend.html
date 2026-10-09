@@ -37,6 +37,7 @@
           <div>
             <span class="rank" id="myRank"></span>
             <div class="dim" id="myGames" style="margin-top: 4px"></div>
+            <button type="button" id="setRating" style="margin-top: 6px">✏️ Change my rating</button>
           </div>
         </div>
         <div id="nameBox" style="margin-top: 12px"></div>
@@ -322,6 +323,7 @@
   }
 
   $("create").addEventListener("click", createInvite);
+  $("setRating").addEventListener("click", () => showRatingPicker(profile.elo, (elo) => { profile.elo = elo; saveProfile(); renderProfile(); }));
   $("copyLink").addEventListener("click", () => {
     $("inviteLink").select();
     navigator.clipboard?.writeText($("inviteLink").value).catch(() => {});

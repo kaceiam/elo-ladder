@@ -4,18 +4,18 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Elo Ladder – Free Chess App with Bots, Friends and Elo Ratings</title>
-<meta name="description" content="Elo Ladder is a free chess app. Play seven Stockfish bots from 400 to 2800 Elo, invite a friend anywhere with a link, and climb the ranks from Beginner to Grandmaster. Install it on iPhone, Android, Windows or Mac — no sign-up.">
+<meta name="description" content="Elo Ladder is a free chess app. Play seven Stockfish bots from 400 to 2800 Elo, take 280 interactive lessons, invite a friend anywhere with a link, and climb the ranks from Beginner to Grandmaster. Install it on iPhone, Android, Windows or Mac — no sign-up.">
 <link rel="canonical" href="https://kaceiam.github.io/elo-ladder/">
 <meta name="robots" content="index, follow">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Elo Ladder">
 <meta property="og:title" content="Elo Ladder – Free Chess App">
-<meta property="og:description" content="Play chess bots from 400 to 2800 Elo or invite a friend anywhere. Free, no sign-up, installs like an app.">
+<meta property="og:description" content="Play chess bots from 400 to 2800 Elo, take 280 lessons, or invite a friend anywhere. Free, no sign-up, installs like an app.">
 <meta property="og:url" content="https://kaceiam.github.io/elo-ladder/">
 <meta property="og:image" content="https://kaceiam.github.io/elo-ladder/icons/icon-512.png">
 <meta name="twitter:card" content="summary">
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#14161b">
+<meta name="theme-color" content="#0b0d18">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="mobile-web-app-capable" content="yes">
@@ -31,7 +31,7 @@
   "alternateName": "Elo Ladder Chess",
   "url": "https://kaceiam.github.io/elo-ladder/",
   "image": "https://kaceiam.github.io/elo-ladder/icons/icon-512.png",
-  "description": "Free chess app with Stockfish bots from 400 to 2800 Elo, friend invites that work anywhere, and Elo ratings.",
+  "description": "Free chess app with Stockfish bots from 400 to 2800 Elo, 280 interactive lessons, friend invites that work anywhere, and Elo ratings.",
   "applicationCategory": "GameApplication",
   "genre": "Chess",
   "operatingSystem": "iOS, Android, Windows, macOS, ChromeOS, Linux",
@@ -41,58 +41,195 @@
 }
 </script>
 <style>
-  .hero { display: grid; grid-template-columns: 120px 1fr; gap: 20px; align-items: center; }
-  .hero img { width: 120px; height: 120px; border-radius: 26px; box-shadow: 0 8px 30px rgba(0,0,0,.5); }
-  .hero h1 { font-size: 34px; }
-  .hero p { margin: 6px 0 0; color: var(--dim); font-size: 17px; }
-  .big { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
-  .big a { display: grid; gap: 4px; text-decoration: none; color: var(--text); background: var(--line); border: 1px solid var(--line);
-           border-radius: 10px; padding: 16px; }
-  .big a:hover { border-color: var(--accent); background: #22324a; }
-  .big a b { font-size: 18px; }
-  .big a.primary { background: var(--accent); color: #0b0d12; }
-  .big a.primary .dim { color: #1d2a40; }
-  #installBtn { font-size: 18px; padding: 14px 22px; }
+  /* ---------- home screen ---------- */
+  body.home { background: #0b0d18; overflow-x: hidden; }
+  .sky { position: fixed; inset: 0; z-index: -1; overflow: hidden;
+    background: radial-gradient(1200px 700px at 15% -10%, #2b2370 0%, transparent 60%),
+                radial-gradient(900px 600px at 95% 10%, #0f4c6b 0%, transparent 55%),
+                radial-gradient(1000px 800px at 50% 120%, #3a1240 0%, transparent 60%), #0b0d18; }
+  .blob { position: absolute; width: 520px; height: 520px; border-radius: 50%; filter: blur(80px); opacity: .45; animation: drift 18s ease-in-out infinite alternate; }
+  .blob.a { background: #6a4dff; left: -120px; top: 10%; }
+  .blob.b { background: #00c2ff; right: -140px; top: 30%; animation-delay: -6s; }
+  .blob.c { background: #ff4fa8; left: 35%; bottom: -220px; animation-delay: -12s; opacity: .3; }
+  @keyframes drift { to { transform: translate(80px, -60px) scale(1.15); } }
+  /* a perspective chessboard "floor" fading into the distance */
+  .floor { position: absolute; left: -50%; right: -50%; bottom: -10%; height: 60%;
+    background-image: linear-gradient(rgba(255,255,255,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.06) 1px, transparent 1px);
+    background-size: 70px 70px; transform: perspective(600px) rotateX(62deg); transform-origin: bottom;
+    mask-image: linear-gradient(to top, #000 10%, transparent 85%); animation: floor 12s linear infinite; }
+  @keyframes floor { to { background-position: 0 70px, 0 0; } }
+  .float-pc { position: absolute; font: 64px/1 "Segoe UI Symbol", serif; color: rgba(255, 255, 255, .07); animation: bob 9s ease-in-out infinite; user-select: none; }
+  @keyframes bob { 50% { transform: translateY(-26px) rotate(8deg); } }
+
+  .home main { max-width: 1180px; gap: 28px; padding-top: 18px; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: .02em; }
+  .brand img { width: 40px; height: 40px; border-radius: 10px; box-shadow: 0 4px 18px rgba(106, 77, 255, .6); }
+  .glass { background: rgba(255, 255, 255, .055); border: 1px solid rgba(255, 255, 255, .1); backdrop-filter: blur(14px); border-radius: 18px; }
+
+  .hero2 { display: grid; grid-template-columns: 1.05fr 1fr; gap: 40px; align-items: center; min-height: 520px; }
+  .pill { display: inline-flex; gap: 8px; align-items: center; padding: 6px 14px; border-radius: 99px; font-size: 13px; font-weight: 600;
+    background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .14); }
+  .pill i { width: 8px; height: 8px; border-radius: 50%; background: #4cc38a; box-shadow: 0 0 10px #4cc38a; }
+  .title { font-size: clamp(54px, 9vw, 108px); line-height: .92; margin: 18px 0 14px; font-weight: 900; letter-spacing: -.03em;
+    background: linear-gradient(100deg, #fff 0%, #ffe7a3 35%, #ffb35c 55%, #c69bff 80%, #7fd8ff 100%); background-size: 200% auto;
+    -webkit-background-clip: text; background-clip: text; color: transparent; animation: shine 7s linear infinite;
+    filter: drop-shadow(0 6px 30px rgba(255, 180, 90, .25)); }
+  @keyframes shine { to { background-position: 200% center; } }
+  .lead { font-size: clamp(17px, 2vw, 21px); color: #c9cbe0; max-width: 34em; margin: 0 0 26px; line-height: 1.5; }
+  .ctas { display: flex; gap: 12px; flex-wrap: wrap; }
+  .cta { display: inline-flex; align-items: center; gap: 10px; padding: 16px 26px; border-radius: 14px; font-weight: 800; font-size: 18px;
+    text-decoration: none; color: #fff; transition: transform .15s, box-shadow .15s; }
+  .cta.main { background: linear-gradient(135deg, #7b5cff, #ff5cb1); box-shadow: 0 10px 30px rgba(123, 92, 255, .5), inset 0 1px 0 rgba(255, 255, 255, .3); }
+  .cta.alt { background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .18); }
+  .cta:hover { transform: translateY(-3px); box-shadow: 0 16px 40px rgba(123, 92, 255, .6); }
+  .stats { display: flex; gap: 26px; flex-wrap: wrap; margin-top: 30px; }
+  .stat b { display: block; font-size: 30px; font-weight: 900; background: linear-gradient(180deg, #fff, #a9b4ff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .stat span { color: #9aa0c0; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; }
+
+  .stage { position: relative; perspective: 1400px; }
+  .stage { padding: 20px 10px; }
+  .stage .board { transform: rotateX(16deg) rotateZ(-6deg); transition: transform .6s; width: min(100%, 420px); margin: 0 auto;
+    box-shadow: 0 0 0 9px var(--frame), 0 0 0 11px rgba(255, 255, 255, .1), 0 40px 80px rgba(0, 0, 0, .7), 0 0 120px var(--board-glow); }
+  .stage:hover .board { transform: rotateX(4deg) rotateZ(-2deg); }
+  .stage .board .sq { cursor: default; font-size: clamp(26px, 4.6vw, 46px); }
+  .stage .board .sq:hover > .pc { transform: none; }
+  .caption { text-align: center; margin-top: 30px; color: #b9bdd8; font-size: 14px; }
+  .caption b { color: #fff; font-family: ui-monospace, Consolas, monospace; font-size: 16px; }
+  .glow-ring { position: absolute; inset: 8% 4% 18%; border-radius: 50%; background: radial-gradient(closest-side, rgba(123, 92, 255, .35), transparent); filter: blur(30px); z-index: -1; }
+
+  .sect-title { font-size: clamp(26px, 3.4vw, 38px); font-weight: 900; margin: 6px 0 4px; letter-spacing: -.02em; text-transform: none; color: #fff; }
+  .sect-sub { color: #9aa0c0; margin: 0 0 18px; }
+  .modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  .mode { position: relative; display: grid; gap: 10px; padding: 22px; text-decoration: none; color: var(--text); border-radius: 20px;
+    background: linear-gradient(160deg, rgba(255, 255, 255, .08), rgba(255, 255, 255, .02)); border: 1px solid rgba(255, 255, 255, .1);
+    transition: transform .2s, box-shadow .2s, border-color .2s; overflow: hidden; }
+  .mode::before { content: ""; position: absolute; inset: -40% -40% auto auto; width: 180px; height: 180px; border-radius: 50%; background: var(--c); opacity: .18; filter: blur(30px); transition: opacity .2s; }
+  .mode:hover { transform: translateY(-6px); border-color: var(--c); box-shadow: 0 18px 50px rgba(0, 0, 0, .45), 0 0 0 1px var(--c), 0 0 40px color-mix(in srgb, var(--c) 40%, transparent); }
+  .mode:hover::before { opacity: .4; }
+  .mode .ico { width: 58px; height: 58px; border-radius: 16px; display: grid; place-items: center; font: 32px/1 "Segoe UI Symbol", "Segoe UI Emoji", serif;
+    background: linear-gradient(135deg, var(--c), color-mix(in srgb, var(--c) 40%, #000)); box-shadow: 0 8px 24px color-mix(in srgb, var(--c) 50%, transparent); }
+  .mode h3 { margin: 0; font-size: 21px; }
+  .mode p { margin: 0; color: #aeb2cc; }
+  .mode .go { color: var(--c); font-weight: 800; }
+
+  .bots-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; }
+  .botcard { display: grid; justify-items: center; gap: 6px; padding: 16px 8px; text-decoration: none; color: var(--text); border-radius: 18px;
+    background: rgba(255, 255, 255, .045); border: 1px solid rgba(255, 255, 255, .08); transition: transform .2s, border-color .2s; }
+  .botcard:hover { transform: translateY(-6px) scale(1.03); border-color: var(--c); }
+  .avatar { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; font: 34px/1 "Segoe UI Symbol", serif; color: #fff;
+    background: radial-gradient(circle at 30% 25%, color-mix(in srgb, var(--c) 70%, #fff), var(--c) 55%, color-mix(in srgb, var(--c) 50%, #000));
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, .12), 0 8px 26px color-mix(in srgb, var(--c) 55%, transparent); }
+  .botcard b { font-size: 15px; }
+  .botcard .dim { font-size: 13px; }
+
+  .install2 { padding: 26px; display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: center; }
+  .install2 h2 { margin: 0 0 6px; font-size: 24px; text-transform: none; color: var(--text); letter-spacing: 0; }
+  #installBtn { font-size: 18px; padding: 14px 24px; border-radius: 14px; background: linear-gradient(135deg, #18c48f, #0ea5e9); border: none; color: #fff; font-weight: 800;
+    box-shadow: 0 10px 30px rgba(14, 165, 233, .45); }
   .steps { margin: 8px 0 0; padding-left: 22px; display: grid; gap: 6px; }
   .how { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 12px; }
-  .how > div { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  .how > div { background: rgba(0, 0, 0, .25); border: 1px solid rgba(255, 255, 255, .08); border-radius: 12px; padding: 12px; }
   .how h3 { margin: 0 0 6px; font-size: 15px; }
-  .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
-  .features h3 { margin: 0 0 4px; font-size: 16px; }
-  .features p { margin: 0; color: var(--dim); }
-  footer { color: var(--dim); font-size: 13px; text-align: center; padding: 8px 0 24px; }
-  @media (max-width: 600px) { .hero { grid-template-columns: 72px 1fr; } .hero img { width: 72px; height: 72px; border-radius: 16px; } .hero h1 { font-size: 26px; } }
+
+  .features2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+  .feat { padding: 20px; }
+  .feat .fi { font-size: 28px; }
+  .feat h3 { margin: 8px 0 6px; font-size: 17px; }
+  .feat p { margin: 0; color: #aeb2cc; }
+  footer { color: #8d91ad; font-size: 13px; text-align: center; padding: 8px 0 28px; }
+
+  .reveal { opacity: 0; transform: translateY(24px); transition: opacity .7s ease, transform .7s ease; }
+  .reveal.in { opacity: 1; transform: none; }
+  @media (max-width: 900px) {
+    .hero2 { grid-template-columns: 1fr; min-height: 0; gap: 26px; }
+    .stage .board { width: min(80%, 340px); }
+    .bots-row { grid-template-columns: repeat(4, 1fr); }
+    .install2 { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 520px) { .bots-row { grid-template-columns: repeat(3, 1fr); } .stats { gap: 18px; } .stat b { font-size: 24px; } }
+  @media (prefers-reduced-motion: reduce) { .blob, .floor, .float-pc, .title { animation: none; } .reveal { opacity: 1; transform: none; } }
 </style>
 </head>
-<body>
+<body class="home">
+<div class="sky" aria-hidden="true">
+  <div class="blob a"></div><div class="blob b"></div><div class="blob c"></div>
+  <div class="floor"></div>
+  <span class="float-pc" style="left: 6%; top: 18%">♞</span>
+  <span class="float-pc" style="left: 88%; top: 12%; animation-delay: -3s">♛</span>
+  <span class="float-pc" style="left: 78%; top: 70%; animation-delay: -5s">♜</span>
+  <span class="float-pc" style="left: 14%; top: 72%; animation-delay: -7s">♝</span>
+  <span class="float-pc" style="left: 48%; top: 6%; animation-delay: -2s; font-size: 44px">♟</span>
+</div>
 <main>
-  <section class="hero">
-    <img src="icons/icon-512.png" alt="Elo Ladder app icon">
+  <div class="topbar">
+    <div class="brand"><img src="icons/icon-192.png" alt="">Elo Ladder</div>
+    <div class="row">
+      <a class="btn" href="training.html">🎓 Training</a>
+      <a class="btn" href="online.html" id="lobbyTop" hidden>Online lobby</a>
+      <a class="btn primary" href="bots.html">Play</a>
+    </div>
+  </div>
+
+  <section class="hero2" style="background: none; border: none; padding: 0">
     <div>
-      <h1>Elo Ladder</h1>
-      <p>Free chess. Play bots from beginner to grandmaster, challenge a friend anywhere, and climb the Elo ladder. No sign-up.</p>
+      <span class="pill"><i></i> Free · No sign-up · Works on every device</span>
+      <h1 class="title">Elo Ladder</h1>
+      <p class="lead">Climb from beginner to grandmaster. Battle seven Stockfish bots, master 280 lessons, and challenge your friends anywhere — right in your browser.</p>
+      <div class="ctas">
+        <a class="cta main" href="bots.html">▶ Play now</a>
+        <a class="cta alt" href="training.html">🎓 Start training</a>
+      </div>
+      <div class="stats">
+        <div class="stat"><b data-count="7">7</b><span>Bots</span></div>
+        <div class="stat"><b data-count="280">280</b><span>Lessons</span></div>
+        <div class="stat"><b data-count="1400">1,400</b><span>Puzzles</span></div>
+        <div class="stat"><b data-count="2800">2800</b><span>Top Elo</span></div>
+      </div>
+    </div>
+    <div class="stage">
+      <div class="glow-ring"></div>
+      <div class="board" id="heroBoard" aria-label="A famous chess game playing"></div>
+      <div class="caption">Now playing: <span id="heroGame">Morphy's Opera Game, Paris 1858</span> · <b id="heroMove">…</b></div>
     </div>
   </section>
 
-  <section>
-    <h2>Play now</h2>
-    <div class="big">
-      <a class="primary" href="bots.html"><b>Play the bots</b><span class="dim">7 bots, 400 to 2800 Elo</span></a>
-      <a href="training.html"><b>🎓 Training</b><span class="dim">280 lessons in 7 courses, beginner to grandmaster</span></a>
-      <a href="friend.html"><b>Play a friend</b><span class="dim">Send an invite link — they can be anywhere</span></a>
-      <a href="online.html" id="lobbyLink" hidden><b>Online lobby</b><span class="dim">Random opponents and friends list</span></a>
+  <div class="reveal">
+    <h2 class="sect-title">Choose your game</h2>
+    <p class="sect-sub">Everything is free. Pick a mode and start playing in one click.</p>
+    <div class="modes">
+      <a class="mode" href="bots.html" style="--c: #7b5cff"><span class="ico">♚</span><h3>Play the bots</h3><p>Seven opponents from Pebble (400) to Oracle (2800), powered by Stockfish 18.</p><span class="go">Play now →</span></a>
+      <a class="mode" href="training.html" style="--c: #18c48f"><span class="ico">🎓</span><h3>Training</h3><p>7 courses, 280 lessons: the rules, checkmates, tactics, 40 openings, endgames and a master class.</p><span class="go">Start learning →</span></a>
+      <a class="mode" href="friend.html" style="--c: #ff5cb1"><span class="ico">♞</span><h3>Play a friend</h3><p>Send an invite link and play anyone, anywhere. Clocks, chat, draws and rematches.</p><span class="go">Invite a friend →</span></a>
+      <a class="mode" href="online.html" id="lobbyLink" hidden style="--c: #0ea5e9"><span class="ico">🌐</span><h3>Online lobby</h3><p>Rated matchmaking, friends list and a live leaderboard.</p><span class="go">Enter lobby →</span></a>
     </div>
-  </section>
+  </div>
 
-  <section id="install">
-    <h2>Get the app</h2>
-    <div id="installed" hidden><b class="up">✓ You're using the Elo Ladder app.</b></div>
-    <div id="installOne" hidden>
-      <button class="primary" id="installBtn">⬇ Install Elo Ladder</button>
-      <div class="dim" style="margin-top: 8px">Free. Adds Elo Ladder to your home screen or desktop and opens in its own window.</div>
+  <div class="reveal">
+    <h2 class="sect-title">Meet the bots</h2>
+    <p class="sect-sub">Every bot plays at its real rating. Start easy, then climb the ladder.</p>
+    <div class="bots-row">
+      <a class="botcard" href="bots.html" style="--c: #4cc38a"><span class="avatar">♙</span><b>Pebble</b><span class="dim">400</span></a>
+      <a class="botcard" href="bots.html" style="--c: #3fb5a8"><span class="avatar">♘</span><b>Rusty</b><span class="dim">800</span></a>
+      <a class="botcard" href="bots.html" style="--c: #2f8fd6"><span class="avatar">♗</span><b>Maple</b><span class="dim">1200</span></a>
+      <a class="botcard" href="bots.html" style="--c: #5b6cf0"><span class="avatar">♖</span><b>Vex</b><span class="dim">1600</span></a>
+      <a class="botcard" href="bots.html" style="--c: #8e5cd9"><span class="avatar">♕</span><b>Ironclad</b><span class="dim">2000</span></a>
+      <a class="botcard" href="bots.html" style="--c: #c2489c"><span class="avatar">♛</span><b>Sable</b><span class="dim">2400</span></a>
+      <a class="botcard" href="bots.html" style="--c: #e0a030"><span class="avatar">♚</span><b>Oracle</b><span class="dim">2800</span></a>
     </div>
-    <div id="installSteps"></div>
-    <details id="otherDevices" style="margin-top: 12px">
+  </div>
+
+  <section id="install" class="glass reveal">
+    <div class="install2">
+      <div>
+        <h2>📲 Get the app — free</h2>
+        <div class="dim">Adds Elo Ladder to your home screen or desktop, opens in its own window, and updates itself.</div>
+        <div id="installed" hidden style="margin-top: 10px"><b class="up">✓ You're using the Elo Ladder app.</b></div>
+        <div id="installSteps"></div>
+      </div>
+      <div id="installOne" hidden><button id="installBtn">⬇ Install Elo Ladder</button></div>
+    </div>
+    <details id="otherDevices" style="padding: 0 26px 22px">
       <summary class="dim">Instructions for every device</summary>
       <div class="how">
         <div><h3>iPhone / iPad</h3><ol class="steps"><li>Open this page in <b>Safari</b>.</li><li>Tap <b>Share</b> (square with an arrow).</li><li>Tap <b>Add to Home Screen</b>, then <b>Add</b>.</li></ol></div>
@@ -103,54 +240,93 @@
     </details>
   </section>
 
-  <section>
-    <h2>What's inside</h2>
-    <div class="features">
-      <div><h3>Bots at every level</h3><p>Seven chess bots powered by Stockfish 18 — Pebble (400) up to Oracle (2800). Strong bots use Stockfish's calibrated Elo limiter.</p></div>
-      <div><h3>Play friends anywhere</h3><p>Create an invite link, text it, and your browsers connect directly. Clocks, chat, draw offers and rematches.</p></div>
-      <div><h3>Real Elo ratings</h3><p>Every game moves your rating, chess.com-style. Climb from Beginner through Intermediate, Advanced and Master to Grandmaster.</p></div>
-      <div><h3>280 lessons</h3><p>Seven training courses: the rules, checkmate patterns, tactics, 40 openings, middlegames, endgames and a master class — with real puzzles you solve on the board.</p></div>
-      <div><h3>Works everywhere</h3><p>iPhone, iPad, Android, Windows, Mac and Chromebook. Play in the browser or install it as an app — free.</p></div>
+  <div class="reveal">
+    <h2 class="sect-title">Why players love it</h2>
+    <div class="features2">
+      <div class="feat glass"><div class="fi">🤖</div><h3>Bots at every level</h3><p>Stockfish 18 at calibrated strengths — strong bots use Stockfish's own Elo limiter.</p></div>
+      <div class="feat glass"><div class="fi">📈</div><h3>Real Elo ratings</h3><p>Every game moves your rating, chess.com-style. Climb from Beginner to Grandmaster.</p></div>
+      <div class="feat glass"><div class="fi">🎓</div><h3>280 lessons</h3><p>Real puzzles you solve on the board, with hints, solutions and stars for perfect lessons.</p></div>
+      <div class="feat glass"><div class="fi">🎨</div><h3>Your board, your style</h3><p>Eight board themes from classic wood to neon, square names, and smooth animations.</p></div>
     </div>
-  </section>
+  </div>
 
   <footer>
     Elo Ladder <span data-version></span> · free and open source on <a href="https://github.com/kaceiam/elo-ladder">GitHub</a> ·
-    chess engine: <a href="https://stockfishchess.org">Stockfish</a> (GPL-3.0) · rules: chess.js
+    chess engine: <a href="https://stockfishchess.org">Stockfish</a> (GPL-3.0) · rules: chess.js · puzzles: Lichess (CC0)
   </footer>
 </main>
 
 <script src="pwa.js"></script>
 <script src="update.js"></script>
+<script src="vendor/chess.min.js"></script>
+<script src="elo.js"></script>
+<script src="board.js"></script>
 <script>
   const $ = (id) => document.getElementById(id);
+
+  // ---------- hero: a famous game plays itself on loop ----------
+  const GAMES = [
+    { name: "Morphy's Opera Game, Paris 1858", moves: "e4 e5 Nf3 d6 d4 Bg4 dxe5 Bxf3 Qxf3 dxe5 Bc4 Nf6 Qb3 Qe7 Nc3 c6 Bg5 b5 Nxb5 cxb5 Bxb5+ Nbd7 O-O-O Rd8 Rxd7 Rxd7 Rd1 Qe6 Bxd7+ Nxd7 Qb8+ Nxb8 Rd8#" },
+    { name: "The Immortal Game, London 1851", moves: "e4 e5 f4 exf4 Bc4 Qh4+ Kf1 b5 Bxb5 Nf6 Nf3 Qh6 d3 Nh5 Nh4 Qg5 Nf5 c6 g4 Nf6 Rg1 cxb5 h4 Qg6 h5 Qg5 Qf3 Ng8 Bxf4 Qf6 Nc3 Bc5 Nd5 Qxb2 Bd6 Bxg1 e5 Qxa1+ Ke2 Na6 Nxg7+ Kd8 Qf6+ Nxf6 Be7#" },
+    { name: "Légal's Mate, Paris 1750", moves: "e4 e5 Nf3 d6 Bc4 Bg4 Nc3 g6 Nxe5 Bxd1 Bxf7+ Ke7 Nd5#" },
+  ];
+  let gi = 0, ply = 0, heroGame = null, heroMoves = [];
+  function loadHeroGame() {
+    const g = GAMES[gi % GAMES.length];
+    heroGame = new Chess();
+    heroMoves = g.moves.split(" ");
+    ply = 0;
+    $("heroGame").textContent = g.name;
+    $("heroMove").textContent = "…";
+    $("heroBoard").innerHTML = boardHtml(heroGame, "w", null, { names: false });
+  }
+  function heroStep() {
+    if (ply >= heroMoves.length) { gi++; setTimeout(() => { loadHeroGame(); setTimeout(heroStep, 900); }, 2600); return; }
+    const san = heroMoves[ply];
+    const m = heroGame.move(san);
+    if (!m) { gi++; loadHeroGame(); return setTimeout(heroStep, 900); }
+    $("heroMove").textContent = `${Math.floor(ply / 2) + 1}.${ply % 2 ? ".." : ""} ${m.san}`;
+    ply++;
+    $("heroBoard").innerHTML = boardHtml(heroGame, "w", null, { names: false });
+    setTimeout(heroStep, heroGame.in_checkmate() ? 400 : 1150);
+  }
+  loadHeroGame();
+  setTimeout(heroStep, 900);
+
+  // ---------- numbers count up, sections fade in ----------
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+  }, { threshold: .12 });
+  document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+  for (const el of document.querySelectorAll("[data-count]")) {
+    const end = +el.dataset.count, t0 = performance.now();
+    const tick = (t) => {
+      const k = Math.min(1, (t - t0) / 1400), v = Math.round(end * (1 - Math.pow(1 - k, 3)));
+      el.textContent = v.toLocaleString();
+      if (k < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
+
+  // ---------- install ----------
   const ua = navigator.userAgent;
   const isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   const isAndroid = /Android/.test(ua);
   const isMacSafari = !isIOS && /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome|Chromium|Edg/.test(ua);
-
-  // Steps for the device you're on, shown up front
   function deviceSteps() {
     if (isIOS) {
       const safari = !/CriOS|FxiOS|EdgiOS/.test(ua);
-      return `<b>Install on your ${/iPad/.test(ua) ? "iPad" : "iPhone"}:</b><ol class="steps">
-        ${safari ? "" : "<li>Open this page in <b>Safari</b> (or use your browser's Share menu).</li>"}
+      return `<ol class="steps">${safari ? "" : "<li>Open this page in <b>Safari</b> (or use your browser's Share menu).</li>"}
         <li>Tap <b>Share</b> <span aria-hidden="true">⎙</span> at the bottom of the screen.</li>
-        <li>Scroll and tap <b>Add to Home Screen</b>, then <b>Add</b>.</li>
-        <li>Open <b>Elo Ladder</b> from your home screen.</li></ol>`;
+        <li>Scroll and tap <b>Add to Home Screen</b>, then <b>Add</b>.</li></ol>`;
     }
-    if (isAndroid) return `<b>Install on Android:</b><ol class="steps"><li>Tap <b>⋮</b> at the top right of Chrome.</li><li>Tap <b>Install app</b> or <b>Add to Home screen</b>.</li></ol>`;
-    if (isMacSafari) return `<b>Install on your Mac:</b><ol class="steps"><li>Click <b>File</b> in the menu bar, then <b>Add to Dock</b>.</li></ol>`;
-    return `<b>Install on this computer:</b><ol class="steps"><li>Click the <b>install icon</b> at the right end of the address bar,
-      or open the browser menu and choose <b>Install</b>.</li></ol>`;
+    if (isAndroid) return `<ol class="steps"><li>Tap <b>⋮</b> at the top right of Chrome.</li><li>Tap <b>Install app</b> or <b>Add to Home screen</b>.</li></ol>`;
+    if (isMacSafari) return `<ol class="steps"><li>Click <b>File</b> in the menu bar, then <b>Add to Dock</b>.</li></ol>`;
+    return `<ol class="steps"><li>Click the <b>install icon</b> at the right end of the address bar, or open the browser menu and choose <b>Install</b>.</li></ol>`;
   }
-
   function renderInstall() {
     if (isInstalledApp()) {
-      $("installed").hidden = false;
-      $("installOne").hidden = true;
-      $("installSteps").innerHTML = "";
-      $("otherDevices").hidden = true;
+      $("installed").hidden = false; $("installOne").hidden = true; $("installSteps").innerHTML = ""; $("otherDevices").hidden = true;
       return;
     }
     $("installOne").hidden = !window.installApp;
@@ -161,7 +337,7 @@
   renderInstall();
 
   // The online lobby only exists where the game server runs
-  fetch("api/health").then((r) => r.json()).then((d) => { if (d.app === "elo-ladder") $("lobbyLink").hidden = false; }).catch(() => {});
+  fetch("api/health").then((r) => r.json()).then((d) => { if (d.app === "elo-ladder") $("lobbyLink").hidden = $("lobbyTop").hidden = false; }).catch(() => {});
 </script>
 </body>
 </html>

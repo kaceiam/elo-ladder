@@ -53,9 +53,15 @@
   <p>Elo Ladder is suitable for all ages and doesn't knowingly collect personal information from anyone. Player names are checked to block inappropriate words.</p>
 
   <h2>Changes and questions</h2>
-  <p>If this policy changes, the new version will be posted on this page. Questions or requests? Open an issue at <a href="https://github.com/kaceiam/elo-ladder/issues">github.com/kaceiam/elo-ladder/issues</a>.</p>
+  <p>If this policy changes, the new version will be posted on this page. <span id="contact">Questions or requests? Open an issue at <a href="https://github.com/kaceiam/elo-ladder/issues">github.com/kaceiam/elo-ladder/issues</a>.</span></p>
 
   <p style="margin-top: 30px"><a class="btn" href="index.html">← Back to Elo Ladder</a></p>
 </main>
+<script src="config.js"></script>
+<script>
+  // Show the support email once it's set in config.js
+  const mail = (window.ELO_CONFIG || {}).supportEmail;
+  if (mail) document.getElementById("contact").innerHTML = `Questions, requests or reports? Email <a href="mailto:${mail}">${mail}</a>.`;
+</script>
 </body>
 </html>

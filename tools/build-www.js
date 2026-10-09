@@ -10,7 +10,7 @@ const ROOT = path.join(__dirname, "..");
 const OUT = path.join(ROOT, "www");
 const INCLUDE = [
   "index.html", "bots.html", "ranked.html", "tournament.html", "friend.html", "training.html", "elotest.html", "online.html", "privacy.html",
-  "app.css", "board.js", "bots.js", "elo.js", "match.js", "names.js", "nav.js", "pwa.js", "update.js",
+  "app.css", "config.js", "board.js", "bots.js", "elo.js", "match.js", "names.js", "nav.js", "pwa.js", "update.js",
   "manifest.webmanifest", "version.json", "icons", "vendor", "training",
 ];
 

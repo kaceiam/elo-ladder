@@ -139,6 +139,7 @@
   </section>
 </main>
 
+<script src="config.js"></script>
 <script src="pwa.js"></script>
 <script src="update.js"></script>
 <script src="vendor/chess.min.js"></script>
@@ -655,10 +656,14 @@
     if (!name) return;
     const reason = prompt(`Report ${name}. What happened? (rude chat, cheating, bad name…)`);
     if (reason === null) return;
-    // No server here, so the report goes to the developer's public support page
-    const lines = G.chat.filter((c) => c.from === name).slice(-5).map((c) => `> ${c.from}: ${c.text}`).join("\n");
-    const body = `**Player reported:** ${name}\n**Reason:** ${reason || "(none given)"}\n**Where:** Play a Friend\n\n**Their recent chat:**\n${lines || "(none)"}\n\n_Reported from the Elo Ladder app._`;
-    window.open(`https://github.com/kaceiam/elo-ladder/issues/new?labels=report&title=${encodeURIComponent("Player report: " + name)}&body=${encodeURIComponent(body)}`, "_blank", "noopener");
+    // No server here: the report goes by email to the support address (private,
+    // no account needed), or to the public support page until an address is set
+    const lines = G.chat.filter((c) => c.from === name).slice(-5).map((c) => `${c.from}: ${c.text}`).join("\n");
+    const cfg = window.ELO_CONFIG || {};
+    const subject = `Player report: ${name}`;
+    const text = `Player reported: ${name}\nReason: ${reason || "(none given)"}\nWhere: Play a Friend\nReported by: ${profile.name}\n\nTheir recent chat:\n${lines || "(none)"}\n\nSent from the Elo Ladder app.`;
+    if (cfg.supportEmail) location.href = `mailto:${cfg.supportEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`;
+    else window.open(`${cfg.supportPage || "https://github.com/kaceiam/elo-ladder/issues"}/new?labels=report&title=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`, "_blank", "noopener");
     if (confirm(`Thanks for reporting ${name}. Block them too?`)) blockOpponent();
   });
   function renderBlockedList() {

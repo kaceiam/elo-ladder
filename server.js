@@ -1062,6 +1062,22 @@ http.createServer((req, res) => {
   console.log(`  admin account:  ${ADMIN_NAME} (key for new devices is in ${path.relative(ROOT, ADMIN_KEY_FILE)})`);
 });
 
+// The player's real network address. Headers like X-Forwarded-For can be
+// faked by anyone, so they're only trusted when they come from a proxy we run:
+// a Cloudflare tunnel on this computer (CF-Connecting-IP), or a hosting
+// platform when TRUST_PROXY is set (the last X-Forwarded-For entry is the
+// one the platform added).
+function clientIp(req) {
+  const direct = String(req.socket.remoteAddress || "").replace(/^::ffff:/, "");
+  const fromThisComputer = direct === "127.0.0.1" || direct === "::1";
+  if (fromThisComputer && req.headers["cf-connecting-ip"]) return String(req.headers["cf-connecting-ip"]).trim();
+  if (process.env.TRUST_PROXY && req.headers["x-forwarded-for"]) {
+    const hops = String(req.headers["x-forwarded-for"]).split(",").map((s) => s.trim()).filter(Boolean);
+    if (hops.length) return hops[hops.length - 1];
+  }
+  return direct;
+}
+
 function handleRequest(req, res) {
   res.on("error", () => {});
   req.on("error", () => {});
@@ -1101,7 +1117,7 @@ function handleRequest(req, res) {
         for (const k of Object.keys(data)) if (data[k] !== null && typeof data[k] === "object") fail(400, "Bad request");
         const me = byToken(req.headers["x-token"]);
         if (action !== actions.login && !me) fail(401, "Log in first");
-        const ip = String(req.headers["x-forwarded-for"] || req.socket.remoteAddress).split(",")[0].trim();
+        const ip = clientIp(req);
         if (me && action !== actions.login) {
           refuseIfSanctioned(me);
           me.lastIp = ip;

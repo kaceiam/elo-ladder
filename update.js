@@ -5,6 +5,10 @@
 // To ship an update: raise "version" in version.json, fill in "title" and
 // "notes", and publish. Pages can delay the restart while something must not
 // be interrupted by setting window.updateBusy = () => true/false.
+//
+// While an update is being built, version.json can announce it ahead of time:
+//   "upcoming": { "version": 3, "title": "…", "eta": "2026-10-09T18:30:00Z" }
+// and every page shows a "being built — ready in mm:ss" bar until it ships.
 
 (function () {
   const POLL_MS = 30_000;
@@ -12,6 +16,8 @@
   let loadedVersion = null; // the version this page was opened with
   let pending = null;       // a newer version we're counting down to
   let deadline = 0;
+  let upcoming = null;      // an update that's still being built
+  let hiddenUpcoming = null;
 
   const store = {
     get(k) { try { return localStorage.getItem(k); } catch { return null; } },
@@ -32,8 +38,34 @@
 
   // ---------- countdown banner ----------
 
+  const clockText = (secs) => {
+    const h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60), s = secs % 60;
+    return h ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}` : `${m}:${String(s).padStart(2, "0")}`;
+  };
+
+  // "Update N is being built" bar, counting down to the estimated finish
+  let buildBar = null;
+  function renderBuildBar() {
+    const show = upcoming && !pending && hiddenUpcoming !== upcoming.version;
+    if (!show) { if (buildBar) { buildBar.remove(); buildBar = null; } return; }
+    if (!buildBar) {
+      buildBar = document.createElement("div");
+      buildBar.className = "update-bar building";
+      buildBar.innerHTML = `<div class="update-text"></div><button type="button" title="Hide">✕</button>`;
+      buildBar.querySelector("button").addEventListener("click", () => { hiddenUpcoming = upcoming.version; renderBuildBar(); });
+      document.body.prepend(buildBar);
+    }
+    const eta = Date.parse(upcoming.eta);
+    const left = Number.isFinite(eta) ? Math.max(0, Math.ceil((eta - Date.now()) / 1000)) : null;
+    const what = upcoming.title ? ` — ${esc(upcoming.title)}` : "";
+    buildBar.querySelector(".update-text").innerHTML = left
+      ? `🛠 <b>Update ${upcoming.version}</b> is being built${what}. Ready in about <b>${clockText(left)}</b>`
+      : `🛠 <b>Update ${upcoming.version}</b> is almost ready${what}. Finishing up…`;
+  }
+
   let bar = null;
   function renderBar() {
+    renderBuildBar();
     if (!pending) return;
     if (!bar) {
       bar = document.createElement("div");
@@ -85,6 +117,7 @@
   async function check() {
     const v = await fetchVersion();
     if (!v || typeof v.version !== "number") return;
+    upcoming = v.upcoming && v.upcoming.version > v.version ? v.upcoming : null;
     if (loadedVersion === null) {
       loadedVersion = v.version;
       showVersionLabel(v);

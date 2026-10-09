@@ -180,4 +180,5 @@ body.is-admin .pname { cursor: pointer; text-decoration: underline dotted; text-
 .feedback { min-height: 1.5em; font-weight: 600; }
 .feedback.good { color: var(--win); }
 .feedback.bad { color: var(--loss); }
-button.promo { font: 40px/1 "Segoe UI Symbol", serif; width: 64px; height: 64px; }
+button.promo { font: 40px/1 "Segoe UI Symbol", serif; width: 64px; height: 64px; }.update-bar.building { background: #2b2a1c; border-bottom-color: #e0a030; }
+.update-bar.building button { background: none; border: none; color: var(--dim); padding: 4px 8px; }

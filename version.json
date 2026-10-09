@@ -1,11 +1,9 @@
 {
-  "version": 2,
-  "title": "Training courses",
+  "version": 3,
+  "title": "Update progress countdown",
   "notes": [
-    "New: 🎓 Training — 7 courses with 40 lessons each (280 lessons, 1,400 exercises).",
-    "Start from zero with how every piece moves, or jump straight to checkmate patterns, tactics, 40 openings, middlegames, endgames and a grandmaster-level Master Class.",
-    "Solve real puzzles right on the board, with hints, solutions and a ★ for every perfect lesson.",
-    "Your progress is saved, and the Continue button takes you to your next lesson."
+    "When a new update is being built, you'll now see a countdown at the top showing about how long until it's ready.",
+    "When it's done, the app restarts into the new version like before."
   ],
   "countdown": 60,
   "date": "2026-10-09"

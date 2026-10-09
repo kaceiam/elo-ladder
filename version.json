@@ -8,5 +8,6 @@
     "Admins can now set any player's online rating."
   ],
   "countdown": 60,
-  "date": "2026-10-09"
+  "date": "2026-10-09",
+  "upcoming": { "version": 8, "title": "Safer chat: report, block and a word filter", "eta": "2026-10-09T22:20:54Z" }
 }

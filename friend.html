@@ -134,6 +134,7 @@
 </main>
 
 <script src="pwa.js"></script>
+<script src="update.js"></script>
 <script src="vendor/chess.min.js"></script>
 <script src="elo.js"></script>
 <script src="names.js"></script>
@@ -620,6 +621,9 @@
     role = null;
     if (location.hash) history.replaceState(null, "", location.pathname);
   }
+
+  // Live updates wait until a friend game is over (restarting would drop the connection)
+  window.updateBusy = () => !!(G && G.status === "playing");
 
   window.addEventListener("beforeunload", (e) => {
     if (G && G.status === "playing") { e.preventDefault(); e.returnValue = ""; }

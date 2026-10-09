@@ -12,7 +12,8 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== "GET" || url.origin !== location.origin || url.pathname.startsWith("/api/")) return;
   e.respondWith(
-    fetch(e.request)
+    // "no-cache" re-checks every file with the server, so an update shows up fully on restart
+    fetch(e.request.url, { cache: "no-cache", credentials: "same-origin" })
       .then((res) => {
         if (res.ok) {
           const copy = res.clone();

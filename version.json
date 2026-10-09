@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "title": "Live updates",
+  "notes": [
+    "The app now updates itself: when a new version comes out you get a countdown, then it restarts into the new version.",
+    "You'll see what changed right here after each update."
+  ],
+  "countdown": 60,
+  "date": "2026-10-09"
+}

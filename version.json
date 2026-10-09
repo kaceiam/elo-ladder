@@ -2,11 +2,12 @@
   "version": 5,
   "title": "Cooler board, rating changer and a brand-new home screen",
   "notes": [
-    "🎨 Board styles: pick from 8 looks — Classic wood, Tournament green, Ocean, Midnight, Marble, Candy, Sunset and glowing Neon. Tap \"Board style\" under any board.",
+    "ðŸŽ¨ Board styles: pick from 8 looks â€” Classic wood, Tournament green, Ocean, Midnight, Marble, Candy, Sunset and glowing Neon. Tap \"Board style\" under any board.",
     "The board got a 3D frame, bigger pieces with shadows, and moves now slide smoothly across the board.",
-    "✏️ Change my rating: set your rating for bot and friend games — pick a level or type an exact number.",
+    "âœï¸ Change my rating: set your rating for bot and friend games â€” pick a level or type an exact number.",
     "A brand-new home screen with a live board replaying famous games like Morphy's Opera Game."
   ],
   "countdown": 60,
-  "date": "2026-10-09"
+  "date": "2026-10-09",
+  "upcoming": { "version": 6, "title": "New menu, ranked matches, Sunday tournaments and unlockable boards", "eta": "2026-10-09T21:51:38Z" }
 }

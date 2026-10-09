@@ -1,13 +1,12 @@
 {
-  "version": 7,
-  "title": "ELO button, Elo Test with replays, and admin Elo control",
+  "version": 8,
+  "title": "Safer chat: report, block and a word filter",
   "notes": [
-    "📈 New ELO button at the top of every page: see all your ratings and change them in one place.",
-    "🧪 Elo Test: four quick games against a bot that adapts to you — win and it gets stronger, lose and it gets easier — to find your real rating, then apply it with one tap.",
-    "▶ Replay your Elo Test games move by move, with play, pause and step buttons.",
-    "Admins can now set any player's online rating."
+    "🚩 Report: tap Report in any game to report a rude player.",
+    "🔇 Block: blocked players can't chat with you, join your invites, challenge you, friend you or be matched with you. Unblock any time.",
+    "Chat now filters out swear words and slurs automatically.",
+    "This keeps Elo Ladder friendly for everyone — and gets it ready for the App Store."
   ],
   "countdown": 60,
-  "date": "2026-10-09",
-  "upcoming": { "version": 8, "title": "Safer chat: report, block and a word filter", "eta": "2026-10-09T22:20:54Z" }
+  "date": "2026-10-10"
 }

@@ -202,6 +202,7 @@
       <div class="err" id="friendErr"></div>
       <div class="list" id="friendRequests"></div>
       <div class="list" id="friendList" style="margin-top: 8px"></div>
+      <div class="dim small" id="blockedList" style="margin-top: 10px"></div>
     </section>
 
     <div class="grid2" style="margin-top: 16px">
@@ -243,6 +244,10 @@
           <button id="toLobby" hidden>Back to lobby</button>
         </div>
         <div class="chat" id="chat"></div>
+        <div class="row chat-safety">
+          <button type="button" id="reportOpp">🚩 Report</button>
+          <button type="button" id="blockOpp">🔇 Block</button>
+        </div>
         <form class="row" id="chatForm">
           <input type="text" id="chatText" placeholder="Say something…" maxlength="300" autocomplete="off">
           <button>Send</button>
@@ -397,6 +402,8 @@
       me = msg.me;
       rememberName(me.name);
       renderMe();
+      renderBlocked();
+      if (view && chess) renderGame();
       if (pendingJoin && !handle.joined) {
         handle.joined = true;
         history.replaceState(null, "", location.pathname);
@@ -666,7 +673,7 @@
     $("addOpp").dataset.act = "friendRequest";
     $("addOpp").dataset.name = oppName;
 
-    $("chat").innerHTML = view.chat.map((c) => `<p><b class="pname" data-player="${esc(c.from)}">${esc(c.from)}:</b> ${esc(c.text)}</p>`).join("")
+    $("chat").innerHTML = view.chat.filter((c) => !(me.blocked || []).includes(c.from)).map((c) => `<p><b class="pname" data-player="${esc(c.from)}">${esc(c.from)}:</b> ${esc(c.text)}</p>`).join("")
       || `<p class="dim">Chat with your opponent here.</p>`;
     $("chat").scrollTop = $("chat").scrollHeight;
   }
@@ -712,6 +719,32 @@
   });
   $("toLobby").addEventListener("click", act("leave"));
 
+  // Report / block the person you're playing
+  const oppName = () => (view && myColor ? view[myColor === "w" ? "black" : "white"].name : null);
+  $("reportOpp").addEventListener("click", async () => {
+    const name = oppName();
+    if (!name) return;
+    const reason = prompt(`Report ${name} to the admin. What happened? (rude chat, cheating, bad name…)`);
+    if (reason === null) return;
+    try {
+      await api("reportPlayer", { name, reason, gameId: view.id });
+      if (confirm(`Thanks — ${name} was reported to the admin. Block them too?`)) await api("block", { name });
+    } catch (err) { alert(err.message); }
+  });
+  $("blockOpp").addEventListener("click", async () => {
+    const name = oppName();
+    if (!name || !confirm(`Block ${name}? You won't see their chat, and they can't match with, challenge or friend you.`)) return;
+    try { await api("block", { name }); } catch (err) { alert(err.message); }
+  });
+  function renderBlocked() {
+    const list = (me && me.blocked) || [];
+    $("blockedList").innerHTML = list.length ? `🔇 Blocked: ${list.map((n) => `${esc(n)} <button type="button" class="x" data-unblock="${esc(n)}" title="Unblock">✕</button>`).join(" ")}` : "";
+  }
+  $("blockedList").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-unblock]");
+    if (b && confirm(`Unblock ${b.dataset.unblock}?`)) { try { await api("block", { name: b.dataset.unblock, unblock: true }); } catch (err) { alert(err.message); } }
+  });
+
   $("chatForm").addEventListener("submit", (e) => {
     e.preventDefault();
     const text = $("chatText").value.trim();
@@ -731,7 +764,7 @@
   let adminName = null;
 
   // ---- AI reports ----
-  const KIND_LABEL = { cheating: "♟ Possible cheating", name: "🏷 Name", "same-network": "🌐 Same network" };
+  const KIND_LABEL = { cheating: "♟ Possible cheating", name: "🏷 Name", "same-network": "🌐 Same network", "player-report": "🚩 Player report" };
 
   function setReportCount(open) {
     $("adminBtn").textContent = open ? `🛡 Admin (${open})` : "🛡 Admin";

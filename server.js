@@ -12,7 +12,7 @@ const crypto = require("crypto");
 const os = require("os");
 const { Chess } = require("./vendor/chess.min.js");
 const { recordMatch } = require("./elo.js");
-const { checkName } = require("./names.js");
+const { checkName, cleanText } = require("./names.js");
 const anticheat = require("./anticheat.js");
 
 const PORT = +process.env.PORT || 8080;
@@ -47,7 +47,7 @@ const byToken = (token) => token && tokens.get(token);
 const publicPlayer = (p) => ({ name: p.name, elo: Math.round(p.elo), games: p.games });
 const NAME_COOLDOWN_MS = 180 * 24 * 3600 * 1000;
 // What a player sees about themselves
-const meView = (p) => ({ ...publicPlayer(p), admin: !!p.admin, nameChangedAt: p.nameChangedAt || null, nextNameChange: p.nameChangedAt ? p.nameChangedAt + NAME_COOLDOWN_MS : null });
+const meView = (p) => ({ ...publicPlayer(p), admin: !!p.admin, blocked: p.blocked || [], nameChangedAt: p.nameChangedAt || null, nextNameChange: p.nameChangedAt ? p.nameChangedAt + NAME_COOLDOWN_MS : null });
 
 // ---------- admin + sanctions ----------
 
@@ -250,7 +250,7 @@ function matchmake() {
     if (paired.has(a)) continue;
     let best = null;
     for (const [b, qb] of waiting) {
-      if (b === a || paired.has(b) || qb.tc !== qa.tc) continue;
+      if (b === a || paired.has(b) || qb.tc !== qa.tc || isBlocked(a, b) || isBlocked(b, a)) continue;
       const gap = Math.abs(players[a].elo - players[b].elo);
       const allowed = Math.max(ratingWindow(now - qa.since), ratingWindow(now - qb.since));
       if (gap <= allowed && (!best || gap < best.gap)) best = { b, gap };
@@ -459,6 +459,7 @@ function renamePlayer(p, name) {
   for (const other of Object.values(players)) {
     if (other.friends) other.friends = other.friends.map(swap);
     if (other.requests) other.requests = other.requests.map(swap);
+    if (other.blocked) other.blocked = other.blocked.map(swap);
   }
   for (const g of games.values()) {
     g.white = swap(g.white); g.black = swap(g.black); g.creator = swap(g.creator);
@@ -533,6 +534,8 @@ function adminTarget(body, me, { notAdmin = true } = {}) {
   if (notAdmin && p.admin) fail(400, "You can't do that to an admin");
   return p;
 }
+// Has `blocker` blocked `who`?
+const isBlocked = (blocker, who) => !!(players[blocker] && (players[blocker].blocked || []).includes(who));
 const playerStatus = (name) => (!online(name) ? "offline" : activeGameOf(name)?.status === "playing" ? "playing" : "online");
 const NAME_RULE = /^[A-Za-z0-9 _-]{2,20}$/;
 
@@ -628,6 +631,7 @@ const actions = {
     const g = games.get(body.id);
     if (!g || g.status !== "open") fail(404, "That game is no longer open");
     if (g.creator === me) fail(400, "You can't play yourself");
+    if (isBlocked(g.creator, me) || isBlocked(me, g.creator)) fail(403, "You can't join that player's game");
     if (activeGameOf(me)) fail(409, "You already have a game going");
     leaveQueue(me);
     startGame(g, me);
@@ -680,8 +684,10 @@ const actions = {
 
   chat(body, me) {
     const { g, color } = myGame(me, body.id);
-    const text = String(body.text || "").trim().slice(0, 300);
+    const text = cleanText(String(body.text || "").trim().slice(0, 300));
     if (!color || !text) fail(400, "Nothing to send");
+    const opp = color === "w" ? g.black : g.white;
+    if (isBlocked(opp, me)) fail(403, `${opp} isn't accepting chat from you`);
     if (Date.now() - (lastChat.get(me) || 0) < 700) fail(429, "Slow down");
     lastChat.set(me, Date.now());
     g.chat.push({ from: me, text, at: Date.now() });
@@ -718,6 +724,7 @@ const actions = {
     if (!them) fail(404, "No player with that name");
     if (them.name === me) fail(400, "That's you!");
     if (friendsOf(me).includes(them.name)) fail(400, `You're already friends with ${them.name}`);
+    if (isBlocked(them.name, me) || isBlocked(me, them.name)) fail(403, "You can't send a request to that player");
     // They already asked us: just become friends
     if (requestsOf(me).includes(them.name)) return actions.friendAccept({ name: them.name }, me);
     const reqs = requestsOf(them.name);
@@ -773,6 +780,7 @@ const actions = {
   challenge(body, me) {
     const them = findPlayer(body.name);
     if (!them || !friendsOf(me).includes(them.name)) fail(400, "You can only challenge friends");
+    if (isBlocked(them.name, me) || isBlocked(me, them.name)) fail(403, "You can't challenge that player");
     if (!TIME_CONTROLS[body.tc]) fail(400, "Unknown time control");
     if (!online(them.name)) fail(409, `${them.name} isn't online`);
     if (activeGameOf(them.name)) fail(409, `${them.name} is in a game right now`);
@@ -970,6 +978,44 @@ const actions = {
     renamePlayer(p, name);
     if (old !== me) send(name, { type: "notice", text: `An admin changed your name from ${old} to ${name}.` });
     return { ok: true, name };
+  },
+
+  // Report a player to the admin (shows up in the Admin tab's reports)
+  reportPlayer(body, me) {
+    const them = findPlayer(body.name);
+    if (!them) fail(404, "No player with that name");
+    if (them.name === me) fail(400, "That's you!");
+    const reason = String(body.reason || "").trim().slice(0, 300) || "No reason given";
+    const g = body.gameId && games.get(body.gameId);
+    const lines = g ? g.chat.filter((c) => c.from === them.name).slice(-5).map((c) => `"${c.text}"`).join(" · ") : "";
+    addReport({ kind: "player-report", severity: "medium", player: them.name,
+      summary: `Reported by ${me}: ${reason}${lines ? ` — their recent chat: ${lines}` : ""}`, gameId: g ? g.id : null,
+      dedupeKey: `player-report:${them.name}:${me}` });
+    return { ok: true };
+  },
+
+  // Block or unblock a player: no chat, matches, friend requests or challenges between you
+  block(body, me) {
+    const them = findPlayer(body.name);
+    if (!them) fail(404, "No player with that name");
+    if (them.name === me) fail(400, "That's you!");
+    const p = players[me];
+    const list = p.blocked || (p.blocked = []);
+    if (body.unblock) p.blocked = list.filter((n) => n !== them.name);
+    else if (!list.includes(them.name)) list.push(them.name);
+    if (!body.unblock) {
+      // Blocking also ends any friendship and pending requests or challenges
+      p.friends = friendsOf(me).filter((n) => n !== them.name);
+      them.friends = friendsOf(them.name).filter((n) => n !== me);
+      p.requests = requestsOf(me).filter((n) => n !== them.name);
+      them.requests = requestsOf(them.name).filter((n) => n !== me);
+      for (const c of challenges.values()) if ((c.from === me && c.to === them.name) || (c.to === me && c.from === them.name)) challenges.delete(c.id);
+    }
+    savePlayers();
+    send(me, { type: "me", me: meView(p) });
+    send(me, friendsView(me));
+    send(them.name, friendsView(them.name));
+    return { ok: true, blocked: p.blocked };
   },
 
   leave(body, me) {

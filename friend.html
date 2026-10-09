@@ -60,6 +60,7 @@
         </div>
         <div class="dim" style="margin-top: 8px">Send the link to your friend. You connect straight to each other — they can be anywhere.</div>
         <div class="err" id="setupErr"></div>
+        <div class="dim small" id="blockedFriend" style="margin-top: 8px"></div>
       </section>
     </div>
   </div>
@@ -117,6 +118,10 @@
           <button id="newInvite" hidden>New invite</button>
         </div>
         <div class="chat" id="chat"></div>
+        <div class="row chat-safety" id="chatSafety">
+          <button type="button" id="reportOpp">🚩 Report</button>
+          <button type="button" id="blockOpp">🔇 Block</button>
+        </div>
         <form class="row" id="chatForm">
           <input type="text" id="chatText" placeholder="Say something…" maxlength="300" autocomplete="off">
           <button>Send</button>
@@ -296,6 +301,7 @@
       c.on("open", () => {
         c.once("data", (msg) => {
           if (!msg || msg.t !== "hello") return c.close();
+          if (isBlockedName(msg.name)) { c.send({ t: "busy" }); return setTimeout(() => c.close(), 200); }
           if (G && G.status === "playing" && conn && conn.open) { c.send({ t: "busy" }); return setTimeout(() => c.close(), 200); }
           if (G && G.status === "playing" && msg.name === G.opp.name) {
             wire(c);
@@ -407,6 +413,12 @@
       return;
     }
     if (msg.t === "start") {
+      if (isBlockedName(msg.host && msg.host.name)) {
+        $("joinStatus").textContent = "";
+        $("joinErr").textContent = `You blocked ${msg.host.name}, so this game can't start. Unblock them on the Play a Friend page if you change your mind.`;
+        leave();
+        return;
+      }
       if (!G || G.status !== "playing") startGame(msg.tc, msg.hostColor, msg.host);
       return;
     }
@@ -434,7 +446,7 @@
         checkPositionEnd();
         break;
       }
-      case "chat": G.chat.push({ from: G.opp.name, text: String(msg.text).slice(0, 300) }); break;
+      case "chat": if (!isBlockedName(G.opp.name)) G.chat.push({ from: G.opp.name, text: EloNames.cleanText(String(msg.text).slice(0, 300)) }); break;
       case "resign": endGame(G.chess.history().length < 2 ? null : 1, G.chess.history().length < 2 ? "aborted" : "resignation", false); break;
       case "flag": endGame(1, "timeout", false); break;
       case "draw":
@@ -616,9 +628,48 @@
     const text = $("chatText").value.trim();
     if (!text || !G) return;
     $("chatText").value = "";
-    G.chat.push({ from: profile.name, text });
-    send({ t: "chat", text });
+    const clean = EloNames.cleanText(text);
+    G.chat.push({ from: profile.name, text: clean });
+    send({ t: "chat", text: clean });
     renderGame();
+  });
+
+  // ---------- report / block (saved on this device) ----------
+
+  const BLOCK_KEY = "elo-blocked";
+  const blockedNames = () => { try { return JSON.parse(localStorage.getItem(BLOCK_KEY)) || []; } catch { return []; } };
+  function isBlockedName(name) { return !!name && blockedNames().some((n) => n.toLowerCase() === String(name).toLowerCase()); }
+  function setBlocked(list) { try { localStorage.setItem(BLOCK_KEY, JSON.stringify(list)); } catch {} renderBlockedList(); }
+  function blockOpponent() {
+    const name = G && G.opp.name;
+    if (!name || !confirm(`Block ${name}? You won't see their chat, and they can't join your invites or invite you.`)) return;
+    setBlocked([...new Set([...blockedNames(), name])]);
+    G.chat = G.chat.filter((c) => c.from !== name);
+    $("chatText").disabled = true;
+    renderGame();
+    $("status").textContent = `${name} is blocked. Finish or resign this game — you won't be matched with them again.`;
+  }
+  $("blockOpp").addEventListener("click", blockOpponent);
+  $("reportOpp").addEventListener("click", () => {
+    const name = G && G.opp.name;
+    if (!name) return;
+    const reason = prompt(`Report ${name}. What happened? (rude chat, cheating, bad name…)`);
+    if (reason === null) return;
+    // No server here, so the report goes to the developer's public support page
+    const lines = G.chat.filter((c) => c.from === name).slice(-5).map((c) => `> ${c.from}: ${c.text}`).join("\n");
+    const body = `**Player reported:** ${name}\n**Reason:** ${reason || "(none given)"}\n**Where:** Play a Friend\n\n**Their recent chat:**\n${lines || "(none)"}\n\n_Reported from the Elo Ladder app._`;
+    window.open(`https://github.com/kaceiam/elo-ladder/issues/new?labels=report&title=${encodeURIComponent("Player report: " + name)}&body=${encodeURIComponent(body)}`, "_blank", "noopener");
+    if (confirm(`Thanks for reporting ${name}. Block them too?`)) blockOpponent();
+  });
+  function renderBlockedList() {
+    const el = $("blockedFriend");
+    if (!el) return;
+    const list = blockedNames();
+    el.innerHTML = list.length ? `🔇 Blocked: ${list.map((n) => `${esc(n)} <button type="button" class="x" data-unblock="${esc(n)}" title="Unblock">✕</button>`).join(" ")}` : "";
+  }
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("#blockedFriend [data-unblock]");
+    if (b && confirm(`Unblock ${b.dataset.unblock}?`)) setBlocked(blockedNames().filter((n) => n !== b.dataset.unblock));
   });
 
   function leave() {
@@ -631,6 +682,7 @@
 
   // Live updates wait until a friend game is over (restarting would drop the connection)
   window.updateBusy = () => !!(G && G.status === "playing");
+  renderBlockedList();
   fetch("api/health").then((r) => r.json()).then((d) => { if (d.app === "elo-ladder") $("lobbyLink").hidden = false; }).catch(() => {});
   // The menu's Change name updates this page too
   document.addEventListener("profilechange", () => { try { profile = { ...profile, ...JSON.parse(localStorage.getItem(PROFILE_KEY)) }; } catch {} renderProfile(); });

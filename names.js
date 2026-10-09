@@ -73,7 +73,33 @@
     return { ok: true };
   }
 
-  const api = { checkName };
+  // Chat filter: blocked words become stars ("you ****"). Checks each word
+  // (and pairs of words, for "f u c k"-style spacing) with the same rules as names.
+  // Fine in chess chat even though they're not allowed in names ("I'll kill your queen")
+  const CHAT_OK = new Set(["kill", "die", "crack", "coke", "drug", "drugs", "dealer", "pot", "nut", "nuts", "balls", "stoner", "lsd", "jihad", "isis", "racist", "racism", "stfu", "gay"]);
+  function cleanText(text) {
+    const s = String(text || "");
+    const tokens = s.split(/(\s+)/); // keep the spaces
+    const bad = (w) => {
+      const t = flat(w);
+      if (!t || CHAT_OK.has(t)) return false;
+      if (WORDS.includes(t) || WORDS.includes(collapse(t))) return true;
+      return STRONG.some((b) => (/^[0-9]+$/.test(b) ? w.includes(b) : containsStrong(t, b)));
+    };
+    const SAFE = new Set(SAFE_CONTAINING);
+    const out = tokens.map((tok) => (/\s/.test(tok) || SAFE.has(flat(tok)) ? tok : bad(tok) ? tok.replace(/[^\s]/g, "*") : tok));
+    // Letters spread out with spaces: "f u c k you" → "* * * * you"
+    for (let i = 0; i < out.length; i += 2) {
+      let j = i;
+      while (j < out.length && out[j].length === 1 && /[A-Za-z0-9@$!|]/.test(out[j])) j += 2;
+      const run = out.slice(i, j).filter((_, k) => k % 2 === 0);
+      if (run.length >= 3 && bad(run.join(""))) for (let k = i; k < j; k += 2) out[k] = "*";
+      if (j > i) i = j - 2;
+    }
+    return out.join("");
+  }
+
+  const api = { checkName, cleanText };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.EloNames = api;
 })(typeof window !== "undefined" ? window : globalThis);

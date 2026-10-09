@@ -9,5 +9,6 @@
     "🎨 Unlock new boards by winning games — including the new Galaxy board and the Champion gold board for Sunday Cup winners."
   ],
   "countdown": 60,
-  "date": "2026-10-09"
+  "date": "2026-10-09",
+  "upcoming": { "version": 7, "title": "ELO button, Elo Test with replays, and admin Elo control", "eta": "2026-10-09T21:36:57Z" }
 }

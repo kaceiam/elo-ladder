@@ -6,5 +6,6 @@
     "When it's done, the app restarts into the new version like before."
   ],
   "countdown": 60,
-  "date": "2026-10-09"
+  "date": "2026-10-09",
+  "upcoming": { "version": 4, "title": "Square names on the board", "eta": "2026-10-09T20:24:46Z" }
 }

@@ -25,6 +25,9 @@ class Engine {
   start() {
     if (this.proc) return;
     this.proc = spawn(process.execPath, [SF_PATH], { stdio: ["pipe", "pipe", "ignore"] });
+    // If the engine dies or can't start, analysis fails quietly instead of crashing the server
+    this.proc.on("error", () => { this.proc = null; if (this.waiter) this.waiter(null); });
+    this.proc.stdin.on("error", () => {});
     this.proc.stdout.on("data", (d) => {
       this.buf += d;
       const lines = this.buf.split("\n");
@@ -43,6 +46,7 @@ class Engine {
         if (onLine) onLine(line);
         if (done(line)) { clearTimeout(timer); this.waiter = null; resolve(line); }
       };
+      if (!this.proc) { clearTimeout(timer); this.waiter = null; return reject(new Error("engine unavailable")); }
       this.proc.stdin.write(cmds.join("\n") + "\n");
     });
   }

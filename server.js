@@ -27,14 +27,19 @@ const TIME_CONTROLS = { "3+2": [3, 2], "5+0": [5, 0], "10+0": [10, 0], "15+10": 
 let players = {};
 try { players = JSON.parse(fs.readFileSync(PLAYERS_FILE, "utf8")); } catch {}
 
+// Run fn, logging instead of crashing if it throws (timers and saves use this)
+function guard(label, fn) {
+  try { return fn(); } catch (err) { console.error(`[${label}]`, err); }
+}
+
 let saveTimer = null;
 function savePlayers() {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
+  saveTimer = setTimeout(() => guard("saving players", () => {
     fs.mkdirSync(DATA_DIR, { recursive: true });
     fs.writeFileSync(PLAYERS_FILE + ".tmp", JSON.stringify(players, null, 1));
     fs.renameSync(PLAYERS_FILE + ".tmp", PLAYERS_FILE);
-  }, 200);
+  }), 200);
 }
 
 const tokens = new Map(Object.values(players).map((p) => [p.token, p]));
@@ -87,11 +92,11 @@ try { reports = JSON.parse(fs.readFileSync(REPORTS_FILE, "utf8")); } catch {}
 let reportsTimer = null;
 function saveReports() {
   clearTimeout(reportsTimer);
-  reportsTimer = setTimeout(() => {
+  reportsTimer = setTimeout(() => guard("saving reports", () => {
     fs.mkdirSync(DATA_DIR, { recursive: true });
     fs.writeFileSync(REPORTS_FILE + ".tmp", JSON.stringify(reports.slice(0, 2000), null, 1));
     fs.renameSync(REPORTS_FILE + ".tmp", REPORTS_FILE);
-  }, 200);
+  }), 200);
 }
 const SEVERITY_RANK = { low: 0, medium: 1, high: 2 };
 const openReports = () => reports.filter((r) => r.status === "open");
@@ -473,38 +478,36 @@ function renamePlayer(p, name) {
 
 // Widening rating windows can create new pairings as time passes;
 // unanswered friend challenges expire
-setInterval(() => {
+setInterval(() => guard("matchmaking", () => {
   matchmake();
   for (const c of challenges.values()) {
     if (Date.now() - c.at > CHALLENGE_MS) { challenges.delete(c.id); pushFriends(c.from, c.to); }
   }
-}, 1000);
+}), 1000);
 
-// Flag falls and abandoned games
-setInterval(() => {
-  const now = Date.now();
-  for (const g of games.values()) {
-    if (g.status === "open" && !online(g.creator) && now - (lastSeen.get(g.creator) || now) > ABANDON_MS) {
-      games.delete(g.id);
-      pushLobby();
-      continue;
-    }
-    if (g.status !== "playing") continue;
-    if (g.base && g.turnStart) {
-      const t = g.chess.turn();
-      if (g.clocks[t] - (now - g.turnStart) <= 0) {
-        endGame(g, t === "w" ? 0 : 1, "timeout");
-        continue;
-      }
-    }
-    for (const [name, color] of [[g.white, "w"], [g.black, "b"]]) {
-      if (!online(name) && now - (lastSeen.get(name) || now) > ABANDON_MS) {
-        if (g.chess.history().length < 2) endGame(g, null, "aborted — player left");
-        else endGame(g, color === "w" ? 0 : 1, "abandoned");
-        break;
-      }
+// Flag falls and abandoned games (each game checked separately, so one bad game can't stop the rest)
+function checkGameTimers(g, now) {
+  if (g.status === "open" && !online(g.creator) && now - (lastSeen.get(g.creator) || now) > ABANDON_MS) {
+    games.delete(g.id);
+    pushLobby();
+    return;
+  }
+  if (g.status !== "playing") return;
+  if (g.base && g.turnStart) {
+    const t = g.chess.turn();
+    if (g.clocks[t] - (now - g.turnStart) <= 0) return endGame(g, t === "w" ? 0 : 1, "timeout");
+  }
+  for (const [name, color] of [[g.white, "w"], [g.black, "b"]]) {
+    if (!online(name) && now - (lastSeen.get(name) || now) > ABANDON_MS) {
+      if (g.chess.history().length < 2) endGame(g, null, "aborted — player left");
+      else endGame(g, color === "w" ? 0 : 1, "abandoned");
+      return;
     }
   }
+}
+setInterval(() => {
+  const now = Date.now();
+  for (const g of [...games.values()]) guard(`game ${g.id}`, () => checkGameTimers(g, now));
 }, 250);
 
 // ---------- actions ----------
@@ -967,10 +970,17 @@ const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; ch
   ".wasm": "application/wasm", ".json": "application/json", ".webmanifest": "application/manifest+json", ".txt": "text/plain; charset=utf-8", ".xml": "application/xml", ".png": "image/png", ".svg": "image/svg+xml", ".ico": "image/x-icon" };
 
 function serveStatic(req, res) {
-  let rel = decodeURIComponent(new URL(req.url, "http://x").pathname);
+  let rel;
+  // A malformed %-code (like /%E0%A4%A) makes decodeURIComponent throw
+  try { rel = decodeURIComponent(new URL(req.url, "http://x").pathname); }
+  catch { res.writeHead(400); return res.end("Bad request"); }
   if (rel === "/") rel = "/index.html";
   const file = path.join(ROOT, path.normalize(rel));
-  if (!file.startsWith(ROOT + path.sep) || file.startsWith(DATA_DIR) || file === __filename) {
+  // Never serve player data or the admin key — the default data folder is
+  // blocked even when DATA_DIR points somewhere else
+  const privateDirs = [DATA_DIR, path.join(ROOT, "data")].map((d) => path.resolve(d).toLowerCase());
+  const lower = path.resolve(file).toLowerCase();
+  if (!file.startsWith(ROOT + path.sep) || privateDirs.some((d) => lower === d || lower.startsWith(d + path.sep)) || file === __filename) {
     res.writeHead(404); return res.end("Not found");
   }
   fs.readFile(file, (err, data) => {
@@ -985,6 +995,11 @@ function openStream(req, res, url) {
   if (!me) { res.writeHead(401); return res.end(); }
   if (sanctionOf(me)) { res.writeHead(403); return res.end(); }
   me.lastSeenAt = Date.now();
+  // Broken connections must never take the server down
+  res.on("error", () => {});
+  req.on("error", () => {});
+  // A handful of tabs per player is plenty; refuse floods of connections
+  if ((streams.get(me.name)?.size || 0) >= 8) { res.writeHead(429); return res.end(); }
   // X-Accel-Buffering stops reverse proxies on hosting platforms from holding events back
   res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive", "X-Accel-Buffering": "no" });
   res.write(`data: ${JSON.stringify({ type: "me", me: meView(me) })}\n\n`);
@@ -997,10 +1012,10 @@ function openStream(req, res, url) {
   pushLobby();
   pushFriends(me.name); // sends our list, and friends see us come online
   if (g) pushGame(g); // opponent sees us come back online
-  const ping = setInterval(() => res.write(": ping\n\n"), 20_000);
+  const ping = setInterval(() => { if (!res.writableEnded && !res.destroyed) res.write(": ping\n\n"); }, 20_000);
   req.on("close", () => {
     clearInterval(ping);
-    streams.get(me.name).delete(res);
+    streams.get(me.name)?.delete(res);
     if (!online(me.name)) {
       lastSeen.set(me.name, Date.now());
       me.lastSeenAt = Date.now();
@@ -1015,6 +1030,24 @@ function openStream(req, res, url) {
 }
 
 http.createServer((req, res) => {
+  // Any unexpected error in one request answers 500 instead of stopping the server
+  try {
+    handleRequest(req, res);
+  } catch (err) {
+    console.error("[request error]", err);
+    if (!res.headersSent) { res.writeHead(500); res.end("Server error"); }
+    else res.destroy();
+  }
+}).listen(PORT, "0.0.0.0", () => {
+  console.log(`Elo Ladder running:`);
+  console.log(`  this computer:  http://localhost:${PORT}`);
+  for (const ip of lanAddresses()) console.log(`  same Wi-Fi:      http://${ip}:${PORT}`);
+  console.log(`  admin account:  ${ADMIN_NAME} (key for new devices is in ${path.relative(ROOT, ADMIN_KEY_FILE)})`);
+});
+
+function handleRequest(req, res) {
+  res.on("error", () => {});
+  req.on("error", () => {});
   const url = new URL(req.url, "http://x");
   if (url.pathname === "/api/events") return openStream(req, res, url);
   if (url.pathname === "/api/share") {
@@ -1031,15 +1064,24 @@ http.createServer((req, res) => {
     let body = "";
     req.on("data", (c) => { body += c; if (body.length > 10_000) req.destroy(); });
     req.on("end", () => {
-      const reply = (status, obj) => { res.writeHead(status, { "Content-Type": "application/json" }); res.end(JSON.stringify(obj)); };
+      const reply = (status, obj) => {
+        if (res.headersSent || res.destroyed) return; // client already gone
+        res.writeHead(status, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(obj));
+      };
       const onError = (err) => {
         if (!(err instanceof HttpError)) console.error(err);
         reply(err.status || 500, err instanceof HttpError ? { error: err.message, ...err.extra } : { error: "Server error" });
       };
       try {
-        const action = actions[url.pathname.slice(5)];
+        const name = url.pathname.slice(5);
+        const action = Object.hasOwn(actions, name) && actions[name];
         if (!action) fail(404, "Unknown action");
-        const data = body ? JSON.parse(body) : {};
+        let data;
+        try { data = body ? JSON.parse(body) : {}; } catch { fail(400, "Bad request"); }
+        if (!data || typeof data !== "object" || Array.isArray(data)) fail(400, "Bad request");
+        // Actions expect text and numbers; anything else (objects, arrays) is junk
+        for (const k of Object.keys(data)) if (data[k] !== null && typeof data[k] === "object") fail(400, "Bad request");
         const me = byToken(req.headers["x-token"]);
         if (action !== actions.login && !me) fail(401, "Log in first");
         const ip = String(req.headers["x-forwarded-for"] || req.socket.remoteAddress).split(",")[0].trim();
@@ -1055,12 +1097,12 @@ http.createServer((req, res) => {
     return;
   }
   serveStatic(req, res);
-}).listen(PORT, "0.0.0.0", () => {
-  console.log(`Elo Ladder running:`);
-  console.log(`  this computer:  http://localhost:${PORT}`);
-  for (const ip of lanAddresses()) console.log(`  same Wi-Fi:      http://${ip}:${PORT}`);
-  console.log(`  admin account:  ${ADMIN_NAME} (key for new devices is in ${path.relative(ROOT, ADMIN_KEY_FILE)})`);
-});
+}
+
+// Last-resort safety net: log anything nothing else caught and keep serving
+// instead of letting one mistake disconnect every player.
+process.on("uncaughtException", (err) => console.error("[uncaught]", err));
+process.on("unhandledRejection", (err) => console.error("[unhandled promise]", err));
 
 // Names created before the name rules existed get reported once for review
 for (const p of Object.values(players)) {

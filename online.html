@@ -236,6 +236,7 @@
           <button id="declineDraw">Decline</button>
         </div>
         <div class="moves" id="moves"></div>
+        <div class="row names-row"></div>
         <div class="row">
           <button id="offerDraw">Offer draw</button>
           <button id="resign">Resign</button>
@@ -684,6 +685,8 @@
     }
   }
   setInterval(tickClocks, 200);
+  for (const r of document.querySelectorAll(".names-row")) r.innerHTML = squareNamesButton();
+  document.addEventListener("squarenames", () => { if (view && chess) renderGame(); });
 
   $("board").addEventListener("click", (e) => {
     if (!view || view.status !== "playing" || chess.turn() !== myColor) return;

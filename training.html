@@ -75,6 +75,7 @@
           <button id="solutionBtn">Show solution</button>
           <button class="primary" id="nextBtn" hidden>Next →</button>
         </div>
+        <div class="row names-row"></div>
         <div class="dim small" id="taskInfo"></div>
       </div>
     </div>
@@ -183,7 +184,7 @@
     progress.last = lesson.id;
     save();
     $("lessonTitle").textContent = `${lessonIndex + 1}. ${lesson.title}`;
-    $("lessonIntro").textContent = lesson.intro;
+    $("lessonIntro").innerHTML = linkSquares(lesson.intro);
     show("lessonView");
     startTask();
   }
@@ -217,8 +218,7 @@
 
   function setPrompt() {
     const side = userColor === "w" ? "White" : "Black";
-    if (task.kind === "goal") $("prompt").textContent = task.prompt;
-    else if (task.kind === "line") $("prompt").textContent = task.prompt;
+    if (task.kind === "goal" || task.kind === "line") $("prompt").innerHTML = linkSquares(task.prompt);
     else $("prompt").innerHTML = `You play <b>${side}</b>. Find the best move${task.moves.length > 2 ? " — and keep going until the puzzle is solved" : ""}.`;
   }
 
@@ -342,7 +342,7 @@
     current.mistakes++;
     if (task.kind === "goal") {
       const m = game.moves({ verbose: true }).find((mv) => { game.move(mv); const ok = meetsGoal(mv, task.goal); game.undo(); return ok; });
-      if (m) { game.move(m); draw(); solved(); $("feedback").textContent = `The answer: ${m.san}.`; }
+      if (m) { game.move(m); draw(); solved(); $("feedback").innerHTML = linkSquares(`The answer: ${m.san}.`); }
       return;
     }
     const exp = expectedMove();
@@ -350,7 +350,7 @@
     const m = game.move(exp);
     step++;
     draw();
-    $("feedback").textContent = `The move was ${m.san}.${step < task.moves.length ? " Keep going from here." : ""}`;
+    $("feedback").innerHTML = linkSquares(`The move was ${m.san}.${step < task.moves.length ? " Keep going from here." : ""}`);
     if (step >= task.moves.length) solved();
     else autoPlay();
   });
@@ -391,6 +391,9 @@
     const s = await loadSection(n.s);
     openLesson(n.s, s.lessons.findIndex((l) => l.id === n.id));
   });
+
+  for (const r of document.querySelectorAll(".names-row")) r.innerHTML = squareNamesButton();
+  document.addEventListener("squarenames", () => { if (game) draw(); });
 
   fetch("training/index.json").then((r) => r.json()).then((data) => { index = data; renderHome(); });
 </script>

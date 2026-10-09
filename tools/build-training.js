@@ -303,7 +303,7 @@ function themeLesson(title, theme, range, extra = "", filter = has(theme)) {
 function section1() {
   const L = [];
   const start = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-  L.push({ title: "Your first moves", intro: "The board has 8 files (a–h) and 8 ranks (1–8). White moves first. Pawns move straight forward: two squares on their first move, one square after that. Knights jump in an L shape.",
+  L.push({ title: "Your first moves", intro: "Every square has a name: a letter for its column (a to h, left to right from White's side) and a number for its row (1 to 8, starting from White's side). So e4 is column e, row 4. The small labels on the board show each square's name — hover any square name in these lessons to light it up. White moves first. Pawns move straight forward: two squares on their first move, one square after that. Knights jump in an L shape.",
     tasks: [
       goalTask(start, { type: "move", from: "e2", to: "e4" }, "Move the e-pawn forward two squares: e2 to e4."),
       goalTask(start, { type: "move", from: "g1", to: "f3" }, "Move the knight from g1 to f3."),

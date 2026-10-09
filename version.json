@@ -1,11 +1,12 @@
 {
-  "version": 3,
-  "title": "Update progress countdown",
+  "version": 4,
+  "title": "Square names on the board",
   "notes": [
-    "When a new update is being built, you'll now see a countdown at the top showing about how long until it's ready.",
-    "When it's done, the app restarts into the new version like before."
+    "Every square now shows its name — a1 to h8 — so you can always see where e4, f7 and the rest are.",
+    "Hover (or tap) a square name or a move like Nf3 in a lesson or the move list, and that square lights up on the board.",
+    "New \"❓ How to read e4, Nf3…\" button explains chess notation: piece letters, x for captures, + for check, # for mate, O-O for castling.",
+    "Prefer a clean board? Use \"🔤 Hide square names\" under any board."
   ],
   "countdown": 60,
-  "date": "2026-10-09",
-  "upcoming": { "version": 4, "title": "Square names on the board", "eta": "2026-10-09T20:24:46Z" }
+  "date": "2026-10-09"
 }

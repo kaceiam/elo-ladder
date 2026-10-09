@@ -67,6 +67,7 @@
         <div class="speech"><div class="who" id="speechWho"></div><div id="speech"></div></div>
         <div class="status" id="status"></div>
         <div class="moves" id="moves"></div>
+        <div class="row names-row"></div>
         <div class="row">
           <button id="resign">Resign</button>
           <button id="newGame" class="primary" hidden>Back to bots</button>
@@ -330,6 +331,9 @@
     renderBoard();
     renderMe();
   }
+
+  for (const r of document.querySelectorAll(".names-row")) r.innerHTML = squareNamesButton();
+  document.addEventListener("squarenames", () => { if (game) renderBoard(); });
 
   $("start").addEventListener("click", startGame);
   $("resign").addEventListener("click", () => {

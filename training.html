@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chess Training: 280 Lessons – Elo Ladder</title>
+<meta name="description" content="Free chess lessons: 7 courses and 280 interactive lessons, from how the pieces move to grandmaster-level combinations. Checkmate patterns, tactics, openings, middlegames and endgames.">
+<link rel="canonical" href="https://kaceiam.github.io/elo-ladder/training.html">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#14161b">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<main>
+  <div class="row" style="justify-content: space-between">
+    <h1 id="pageTitle">Training</h1>
+    <div class="row">
+      <a class="btn" href="index.html">Home</a>
+      <a class="btn" href="bots.html">Play bots</a>
+      <a class="btn" href="friend.html">Play a friend</a>
+    </div>
+  </div>
+
+  <!-- All sections -->
+  <div id="homeView">
+    <section>
+      <div class="row" style="justify-content: space-between">
+        <div>
+          <h2 style="margin-bottom: 4px">Your progress</h2>
+          <div class="dim" id="overall"></div>
+        </div>
+        <button class="primary" id="continueBtn" hidden>Continue</button>
+      </div>
+      <div class="bar" style="margin-top: 10px"><i id="overallBar"></i></div>
+    </section>
+    <div class="courses" id="courses" style="margin-top: 16px"></div>
+    <p class="dim small" style="text-align: center">Puzzles from the <a href="https://database.lichess.org/#puzzles">Lichess puzzle database</a> (public domain).</p>
+  </div>
+
+  <!-- One section -->
+  <div id="sectionView" hidden>
+    <section>
+      <div class="row" style="justify-content: space-between">
+        <button id="backHome">← All courses</button>
+        <span class="dim" id="sectionProgress"></span>
+      </div>
+      <h2 id="sectionTitle" style="margin: 12px 0 4px; font-size: 22px; text-transform: none; color: var(--text); letter-spacing: 0"></h2>
+      <p class="dim" id="sectionAbout" style="margin: 0"></p>
+    </section>
+    <div class="lessons" id="lessons" style="margin-top: 16px"></div>
+  </div>
+
+  <!-- One lesson -->
+  <section id="lessonView" hidden>
+    <div class="row" style="justify-content: space-between">
+      <button id="backSection">← Lessons</button>
+      <div class="dots" id="dots"></div>
+    </div>
+    <h2 id="lessonTitle" style="margin: 12px 0 6px; font-size: 20px; text-transform: none; color: var(--text); letter-spacing: 0"></h2>
+    <p id="lessonIntro" style="margin: 0 0 12px"></p>
+    <div class="game">
+      <div class="boardcol">
+        <div class="board" id="board"></div>
+      </div>
+      <div class="side">
+        <div class="banner" id="prompt"></div>
+        <div class="feedback" id="feedback"></div>
+        <div class="row">
+          <button id="hintBtn">💡 Hint</button>
+          <button id="solutionBtn">Show solution</button>
+          <button class="primary" id="nextBtn" hidden>Next →</button>
+        </div>
+        <div class="dim small" id="taskInfo"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Promotion choice -->
+  <div class="update-modal" id="promoPicker" hidden>
+    <div class="update-card" style="text-align: center">
+      <h2 style="margin: 0 0 12px">Promote to…</h2>
+      <div class="row" style="justify-content: center">
+        <button class="promo" data-piece="q">♛</button><button class="promo" data-piece="r">♜</button>
+        <button class="promo" data-piece="b">♝</button><button class="promo" data-piece="n">♞</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="pwa.js"></script>
+<script src="update.js"></script>
+<script src="vendor/chess.min.js"></script>
+<script src="board.js"></script>
+<script>
+  const KEY = "elo-training";
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
+  // progress: { done: { lessonId: mistakes }, last: lessonId }
+  let progress = { done: {}, last: null };
+  try { progress = { ...progress, ...JSON.parse(localStorage.getItem(KEY)) }; } catch {}
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(progress)); } catch {} };
+
+  let index = null;          // all sections (titles only)
+  const sections = {};       // id -> full section with tasks, loaded on demand
+  let current = null;        // { section, lessonIndex, taskIndex, mistakes, results: [] }
+  let game = null, task = null, userColor = "w", step = 0, selected = null, busy = false, taskFailed = false;
+
+  function show(view) {
+    for (const v of ["homeView", "sectionView", "lessonView"]) $(v).hidden = v !== view;
+    window.scrollTo(0, 0);
+  }
+
+  // ---------- courses ----------
+
+  function renderHome() {
+    const total = index.sections.reduce((n, s) => n + s.lessons.length, 0);
+    const done = Object.keys(progress.done).length;
+    $("overall").textContent = `${done} of ${total} lessons complete`;
+    $("overallBar").style.width = `${(done / total) * 100}%`;
+    $("continueBtn").hidden = !nextLesson();
+    $("courses").innerHTML = index.sections.map((s) => {
+      const d = s.lessons.filter((l) => progress.done[l.id] !== undefined).length;
+      return `
+        <button class="course" data-section="${s.id}">
+          <span class="icon">${s.icon}</span>
+          <span><b>${s.id}. ${esc(s.title)}</b><span class="dim">${esc(s.about)}</span>
+            <span class="bar"><i style="width: ${(d / s.lessons.length) * 100}%"></i></span>
+            <span class="dim small">${d} / ${s.lessons.length} lessons</span></span>
+        </button>`;
+    }).join("");
+    show("homeView");
+  }
+
+  // First unfinished lesson, starting from where you were last
+  function nextLesson() {
+    const all = index.sections.flatMap((s) => s.lessons.map((l) => ({ s: s.id, id: l.id })));
+    const from = Math.max(0, all.findIndex((x) => x.id === progress.last));
+    for (let i = 0; i < all.length; i++) {
+      const x = all[(from + i) % all.length];
+      if (progress.done[x.id] === undefined) return x;
+    }
+    return null;
+  }
+
+  async function loadSection(id) {
+    if (!sections[id]) sections[id] = await fetch(`training/section-${id}.json`).then((r) => r.json());
+    return sections[id];
+  }
+
+  async function openSection(id) {
+    const s = await loadSection(id);
+    const meta = index.sections.find((x) => x.id === id);
+    const d = s.lessons.filter((l) => progress.done[l.id] !== undefined).length;
+    $("sectionTitle").textContent = `${meta.icon} ${s.title}`;
+    $("sectionAbout").textContent = meta.about;
+    $("sectionProgress").textContent = `${d} / ${s.lessons.length} complete`;
+    const next = s.lessons.find((l) => progress.done[l.id] === undefined);
+    $("lessons").innerHTML = s.lessons.map((l, i) => {
+      const m = progress.done[l.id];
+      const state = m === undefined ? (next && next.id === l.id ? "next" : "") : m === 0 ? "perfect" : "done";
+      return `
+        <button class="lesson ${state}" data-lesson="${i}" data-section="${id}">
+          <span class="num">${state === "perfect" ? "★" : state === "done" ? "✓" : i + 1}</span>
+          <span>${esc(l.title)}<span class="dim small">${l.tasks.length} exercises${state === "next" ? " · up next" : ""}</span></span>
+        </button>`;
+    }).join("");
+    current = { section: s };
+    show("sectionView");
+  }
+
+  // ---------- a lesson ----------
+
+  async function openLesson(sectionId, lessonIndex) {
+    const s = await loadSection(sectionId);
+    const lesson = s.lessons[lessonIndex];
+    current = { section: s, lessonIndex, taskIndex: 0, mistakes: 0, results: [] };
+    progress.last = lesson.id;
+    save();
+    $("lessonTitle").textContent = `${lessonIndex + 1}. ${lesson.title}`;
+    $("lessonIntro").textContent = lesson.intro;
+    show("lessonView");
+    startTask();
+  }
+
+  const lesson = () => current.section.lessons[current.lessonIndex];
+
+  function renderDots() {
+    $("dots").innerHTML = lesson().tasks.map((t, i) => {
+      const r = current.results[i];
+      return `<span class="dotx ${r === true ? "good" : r === false ? "bad" : i === current.taskIndex ? "now" : ""}"></span>`;
+    }).join("");
+  }
+
+  function startTask() {
+    task = lesson().tasks[current.taskIndex];
+    game = new Chess(task.fen);
+    step = 0; selected = null; taskFailed = false; busy = false;
+    if (task.kind === "puzzle") userColor = game.turn() === "w" ? "b" : "w"; // first move is the opponent's
+    else if (task.kind === "line") userColor = task.side;
+    else userColor = game.turn();
+    $("nextBtn").hidden = true;
+    $("hintBtn").hidden = $("solutionBtn").hidden = false;
+    $("feedback").textContent = "";
+    $("feedback").className = "feedback";
+    $("taskInfo").textContent = task.kind === "puzzle" ? `Puzzle rating ${task.rating} · lichess.org/training/${task.id}` : "";
+    setPrompt();
+    renderDots();
+    draw();
+    autoPlay();
+  }
+
+  function setPrompt() {
+    const side = userColor === "w" ? "White" : "Black";
+    if (task.kind === "goal") $("prompt").textContent = task.prompt;
+    else if (task.kind === "line") $("prompt").textContent = task.prompt;
+    else $("prompt").innerHTML = `You play <b>${side}</b>. Find the best move${task.moves.length > 2 ? " — and keep going until the puzzle is solved" : ""}.`;
+  }
+
+  function draw() { $("board").innerHTML = boardHtml(game, userColor, selected); }
+
+  const uci = (m) => m.from + m.to + (m.promotion || "");
+  const applyUci = (u) => game.move({ from: u.slice(0, 2), to: u.slice(2, 4), promotion: u[4] || undefined });
+
+  // Play the opponent's moves (puzzle setup and replies, opening lines)
+  function autoPlay() {
+    if (task.kind === "goal") return;
+    if (step < task.moves.length && game.turn() !== userColor) {
+      busy = true;
+      setTimeout(() => {
+        applyUci(task.moves[step++]);
+        busy = false;
+        draw();
+        if (step >= task.moves.length) solved();
+        else autoPlay();
+      }, step === 0 ? 600 : 450);
+    }
+  }
+
+  function meetsGoal(move, goal) {
+    switch (goal.type) {
+      case "move": return move.from === goal.from && move.to === goal.to;
+      case "capture": return move.to === goal.square && !!move.captured;
+      case "promote": return !!move.promotion;
+      case "castle": return goal.side === "k" ? move.flags.includes("k") : goal.side === "q" ? move.flags.includes("q") : /[kq]/.test(move.flags);
+      case "enpassant": return move.flags.includes("e");
+      case "check": return game.in_check();
+      case "legal": return true;
+    }
+    return false;
+  }
+
+  function tryMove(mv) {
+    const move = game.move(mv);
+    if (!move) return;
+    if (task.kind === "goal") {
+      if (meetsGoal(move, task.goal)) { draw(); return solved(); }
+      game.undo();
+      return wrong();
+    }
+    const expected = task.moves[step];
+    // Any checkmate on the last move counts, even if it's not the listed one
+    const lastMove = step === task.moves.length - 1;
+    if (uci(move) === expected || (lastMove && game.in_checkmate())) {
+      step++;
+      draw();
+      $("feedback").textContent = step < task.moves.length ? "✓ Good move! Keep going…" : "";
+      $("feedback").className = "feedback good";
+      if (step >= task.moves.length) solved();
+      else autoPlay();
+    } else {
+      game.undo();
+      wrong();
+    }
+  }
+
+  function wrong() {
+    current.mistakes++;
+    taskFailed = true;
+    $("feedback").textContent = "✗ Not quite — try again. Stuck? Use the hint.";
+    $("feedback").className = "feedback bad";
+    draw();
+  }
+
+  function solved() {
+    current.results[current.taskIndex] = !taskFailed;
+    const last = current.taskIndex === lesson().tasks.length - 1;
+    $("feedback").textContent = taskFailed ? "✓ Solved." : ["✓ Correct!", "✓ Excellent!", "✓ Perfect!", "✓ Great find!"][current.taskIndex % 4];
+    $("feedback").className = "feedback good";
+    $("hintBtn").hidden = $("solutionBtn").hidden = true;
+    $("nextBtn").hidden = false;
+    $("nextBtn").textContent = last ? "Finish lesson ✓" : "Next →";
+    renderDots();
+  }
+
+  function finishLesson() {
+    const l = lesson();
+    const prev = progress.done[l.id];
+    progress.done[l.id] = prev === undefined ? current.mistakes : Math.min(prev, current.mistakes);
+    save();
+    const perfect = current.mistakes === 0;
+    const nextIdx = current.lessonIndex + 1;
+    const hasNext = nextIdx < current.section.lessons.length;
+    $("prompt").innerHTML = `<b>${perfect ? "★ Perfect lesson!" : "✓ Lesson complete!"}</b> ${perfect ? "No mistakes at all." : `${current.mistakes} mistake${current.mistakes === 1 ? "" : "s"} — replay it anytime for a perfect star.`}`;
+    $("feedback").textContent = "";
+    $("nextBtn").textContent = hasNext ? `Next lesson: ${current.section.lessons[nextIdx].title} →` : "Back to the course";
+    current.finished = () => (hasNext ? openLesson(current.section.id, nextIdx) : openSection(current.section.id));
+    $("nextBtn").hidden = false;
+  }
+
+  // ---------- controls ----------
+
+  $("nextBtn").addEventListener("click", () => {
+    if (current.finished) return current.finished(); // lesson-complete screen
+    if (current.taskIndex < lesson().tasks.length - 1) { current.taskIndex++; startTask(); }
+    else finishLesson();
+  });
+
+  function expectedMove() {
+    if (task.kind === "goal") return null;
+    const u = task.moves[step];
+    return u && { from: u.slice(0, 2), to: u.slice(2, 4), promotion: u[4] };
+  }
+
+  $("hintBtn").addEventListener("click", () => {
+    taskFailed = true;
+    const exp = expectedMove();
+    if (exp) { selected = exp.from; draw(); $("feedback").textContent = "💡 Move the highlighted piece."; }
+    else if (task.goal.square) { $("feedback").textContent = `💡 Look at the piece on ${task.goal.square}.`; }
+    else if (task.goal.from) { selected = task.goal.from; draw(); $("feedback").textContent = "💡 Move the highlighted piece."; }
+    else $("feedback").textContent = "💡 " + ({ promote: "Push the pawn all the way.", castle: "Click your king, then the square two steps toward a rook.", enpassant: "Your pawn captures diagonally onto the square behind the black pawn.", check: "Find a square where your piece attacks the black king.", legal: "Try moving your king to a square that isn't attacked." }[task.goal.type] || "Think about what the task asks.");
+    $("feedback").className = "feedback";
+  });
+
+  $("solutionBtn").addEventListener("click", () => {
+    taskFailed = true;
+    current.mistakes++;
+    if (task.kind === "goal") {
+      const m = game.moves({ verbose: true }).find((mv) => { game.move(mv); const ok = meetsGoal(mv, task.goal); game.undo(); return ok; });
+      if (m) { game.move(m); draw(); solved(); $("feedback").textContent = `The answer: ${m.san}.`; }
+      return;
+    }
+    const exp = expectedMove();
+    if (!exp) return;
+    const m = game.move(exp);
+    step++;
+    draw();
+    $("feedback").textContent = `The move was ${m.san}.${step < task.moves.length ? " Keep going from here." : ""}`;
+    if (step >= task.moves.length) solved();
+    else autoPlay();
+  });
+
+  // Board clicks, with a choice of piece when a pawn promotes
+  let pendingPromo = null;
+  $("board").addEventListener("click", (e) => {
+    if (!game || busy || $("nextBtn").hidden === false || game.turn() !== userColor) return;
+    handleBoardClick(e, game, userColor, selected, (mv) => {
+      const piece = game.get(mv.from);
+      if (piece && piece.type === "p" && (mv.to[1] === "8" || mv.to[1] === "1")) {
+        pendingPromo = mv;
+        $("promoPicker").hidden = false;
+        return;
+      }
+      tryMove(mv);
+    }, (sq) => { selected = sq; draw(); });
+  });
+  $("promoPicker").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-piece]");
+    if (!b || !pendingPromo) return;
+    $("promoPicker").hidden = true;
+    tryMove({ ...pendingPromo, promotion: b.dataset.piece });
+    pendingPromo = null;
+  });
+
+  document.addEventListener("click", (e) => {
+    const s = e.target.closest("[data-section]");
+    if (!s) return;
+    if (s.dataset.lesson !== undefined) openLesson(+s.dataset.section, +s.dataset.lesson);
+    else openSection(+s.dataset.section);
+  });
+  $("backHome").addEventListener("click", renderHome);
+  $("backSection").addEventListener("click", () => openSection(current.section.id));
+  $("continueBtn").addEventListener("click", async () => {
+    const n = nextLesson();
+    if (!n) return;
+    const s = await loadSection(n.s);
+    openLesson(n.s, s.lessons.findIndex((l) => l.id === n.id));
+  });
+
+  fetch("training/index.json").then((r) => r.json()).then((data) => { index = data; renderHome(); });
+</script>
+</body>
+</html>

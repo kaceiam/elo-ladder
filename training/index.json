@@ -1,0 +1,1461 @@
+{
+ "sections": [
+  {
+   "id": 1,
+   "title": "Chess Basics",
+   "icon": "♙",
+   "about": "How every piece moves, castling, en passant, check and checkmate — then your first puzzles.",
+   "lessons": [
+    {
+     "id": "1-1",
+     "title": "Your first moves",
+     "tasks": 5
+    },
+    {
+     "id": "1-2",
+     "title": "The rook",
+     "tasks": 5
+    },
+    {
+     "id": "1-3",
+     "title": "The bishop",
+     "tasks": 5
+    },
+    {
+     "id": "1-4",
+     "title": "The queen",
+     "tasks": 5
+    },
+    {
+     "id": "1-5",
+     "title": "The king",
+     "tasks": 5
+    },
+    {
+     "id": "1-6",
+     "title": "The knight",
+     "tasks": 5
+    },
+    {
+     "id": "1-7",
+     "title": "Pawn captures",
+     "tasks": 5
+    },
+    {
+     "id": "1-8",
+     "title": "Promotion",
+     "tasks": 5
+    },
+    {
+     "id": "1-9",
+     "title": "Castling",
+     "tasks": 5
+    },
+    {
+     "id": "1-10",
+     "title": "En passant",
+     "tasks": 5
+    },
+    {
+     "id": "1-11",
+     "title": "Giving check",
+     "tasks": 5
+    },
+    {
+     "id": "1-12",
+     "title": "Getting out of check",
+     "tasks": 5
+    },
+    {
+     "id": "1-13",
+     "title": "Piece values",
+     "tasks": 5
+    },
+    {
+     "id": "1-14",
+     "title": "Your first checkmate",
+     "tasks": 5
+    },
+    {
+     "id": "1-15",
+     "title": "Free pieces",
+     "tasks": 5
+    },
+    {
+     "id": "1-16",
+     "title": "Checkmate in one II",
+     "tasks": 5
+    },
+    {
+     "id": "1-17",
+     "title": "Free pieces II",
+     "tasks": 5
+    },
+    {
+     "id": "1-18",
+     "title": "Back-rank basics",
+     "tasks": 5
+    },
+    {
+     "id": "1-19",
+     "title": "Your first fork",
+     "tasks": 5
+    },
+    {
+     "id": "1-20",
+     "title": "Checkmate in one III",
+     "tasks": 5
+    },
+    {
+     "id": "1-21",
+     "title": "Your first pin",
+     "tasks": 5
+    },
+    {
+     "id": "1-22",
+     "title": "One good move",
+     "tasks": 5
+    },
+    {
+     "id": "1-23",
+     "title": "Free pieces III",
+     "tasks": 5
+    },
+    {
+     "id": "1-24",
+     "title": "Promote your pawn",
+     "tasks": 5
+    },
+    {
+     "id": "1-25",
+     "title": "Forks II",
+     "tasks": 5
+    },
+    {
+     "id": "1-26",
+     "title": "Attack f7",
+     "tasks": 5
+    },
+    {
+     "id": "1-27",
+     "title": "Opening traps",
+     "tasks": 5
+    },
+    {
+     "id": "1-28",
+     "title": "Checkmate in one IV",
+     "tasks": 5
+    },
+    {
+     "id": "1-29",
+     "title": "Trapped pieces",
+     "tasks": 5
+    },
+    {
+     "id": "1-30",
+     "title": "Pins II",
+     "tasks": 5
+    },
+    {
+     "id": "1-31",
+     "title": "Skewers",
+     "tasks": 5
+    },
+    {
+     "id": "1-32",
+     "title": "Easy endgames",
+     "tasks": 5
+    },
+    {
+     "id": "1-33",
+     "title": "Pawn endgame basics",
+     "tasks": 5
+    },
+    {
+     "id": "1-34",
+     "title": "Discovered attacks",
+     "tasks": 5
+    },
+    {
+     "id": "1-35",
+     "title": "Checkmate in two",
+     "tasks": 5
+    },
+    {
+     "id": "1-36",
+     "title": "Capture the defender",
+     "tasks": 5
+    },
+    {
+     "id": "1-37",
+     "title": "Forks III",
+     "tasks": 5
+    },
+    {
+     "id": "1-38",
+     "title": "Find the win",
+     "tasks": 5
+    },
+    {
+     "id": "1-39",
+     "title": "Checkmate in two II",
+     "tasks": 5
+    },
+    {
+     "id": "1-40",
+     "title": "Beginner graduation",
+     "tasks": 5
+    }
+   ]
+  },
+  {
+   "id": 2,
+   "title": "Checkmate Patterns",
+   "icon": "♚",
+   "about": "The classic mating patterns every player should know, plus mate in 1, 2 and 3.",
+   "lessons": [
+    {
+     "id": "2-1",
+     "title": "Back-rank mate",
+     "tasks": 5
+    },
+    {
+     "id": "2-2",
+     "title": "Back-rank mate II",
+     "tasks": 5
+    },
+    {
+     "id": "2-3",
+     "title": "Smothered mate",
+     "tasks": 5
+    },
+    {
+     "id": "2-4",
+     "title": "Smothered mate II",
+     "tasks": 5
+    },
+    {
+     "id": "2-5",
+     "title": "Anastasia's mate",
+     "tasks": 5
+    },
+    {
+     "id": "2-6",
+     "title": "Arabian mate",
+     "tasks": 5
+    },
+    {
+     "id": "2-7",
+     "title": "Hook mate",
+     "tasks": 5
+    },
+    {
+     "id": "2-8",
+     "title": "Boden's mate",
+     "tasks": 5
+    },
+    {
+     "id": "2-9",
+     "title": "Double-bishop mate",
+     "tasks": 5
+    },
+    {
+     "id": "2-10",
+     "title": "Dovetail mate",
+     "tasks": 5
+    },
+    {
+     "id": "2-11",
+     "title": "Corner mate",
+     "tasks": 5
+    },
+    {
+     "id": "2-12",
+     "title": "Epaulette mate",
+     "tasks": 5
+    },
+    {
+     "id": "2-13",
+     "title": "Opera mate",
+     "tasks": 5
+    },
+    {
+     "id": "2-14",
+     "title": "Pillsbury's mate",
+     "tasks": 5
+    },
+    {
+     "id": "2-15",
+     "title": "Morphy's mate",
+     "tasks": 5
+    },
+    {
+     "id": "2-16",
+     "title": "Triangle mate",
+     "tasks": 5
+    },
+    {
+     "id": "2-17",
+     "title": "Swallow's tail mate",
+     "tasks": 5
+    },
+    {
+     "id": "2-18",
+     "title": "Kill box mate",
+     "tasks": 5
+    },
+    {
+     "id": "2-19",
+     "title": "Blind swine mate",
+     "tasks": 5
+    },
+    {
+     "id": "2-20",
+     "title": "Vuković mate",
+     "tasks": 5
+    },
+    {
+     "id": "2-21",
+     "title": "Balestra mate",
+     "tasks": 5
+    },
+    {
+     "id": "2-22",
+     "title": "Mate in one",
+     "tasks": 5
+    },
+    {
+     "id": "2-23",
+     "title": "Mate in one II",
+     "tasks": 5
+    },
+    {
+     "id": "2-24",
+     "title": "Mate in one III",
+     "tasks": 5
+    },
+    {
+     "id": "2-25",
+     "title": "Mate in two",
+     "tasks": 5
+    },
+    {
+     "id": "2-26",
+     "title": "Mate in two II",
+     "tasks": 5
+    },
+    {
+     "id": "2-27",
+     "title": "Mate in two III",
+     "tasks": 5
+    },
+    {
+     "id": "2-28",
+     "title": "Mate in two IV",
+     "tasks": 5
+    },
+    {
+     "id": "2-29",
+     "title": "Mate in two V",
+     "tasks": 5
+    },
+    {
+     "id": "2-30",
+     "title": "Mate in three",
+     "tasks": 5
+    },
+    {
+     "id": "2-31",
+     "title": "Mate in three II",
+     "tasks": 5
+    },
+    {
+     "id": "2-32",
+     "title": "Mate in three III",
+     "tasks": 5
+    },
+    {
+     "id": "2-33",
+     "title": "Mate in three IV",
+     "tasks": 5
+    },
+    {
+     "id": "2-34",
+     "title": "Mate in four",
+     "tasks": 5
+    },
+    {
+     "id": "2-35",
+     "title": "Mate with a sacrifice",
+     "tasks": 5
+    },
+    {
+     "id": "2-36",
+     "title": "Mate with double check",
+     "tasks": 5
+    },
+    {
+     "id": "2-37",
+     "title": "Mate with a discovered check",
+     "tasks": 5
+    },
+    {
+     "id": "2-38",
+     "title": "Mate on an exposed king",
+     "tasks": 5
+    },
+    {
+     "id": "2-39",
+     "title": "Mate on the f-file",
+     "tasks": 5
+    },
+    {
+     "id": "2-40",
+     "title": "Mating attacks",
+     "tasks": 5
+    }
+   ]
+  },
+  {
+   "id": 3,
+   "title": "Tactics",
+   "icon": "⚔",
+   "about": "Forks, pins, skewers, discovered attacks and every other tactic — in two levels each.",
+   "lessons": [
+    {
+     "id": "3-1",
+     "title": "Forks",
+     "tasks": 5
+    },
+    {
+     "id": "3-2",
+     "title": "Pins",
+     "tasks": 5
+    },
+    {
+     "id": "3-3",
+     "title": "Skewers",
+     "tasks": 5
+    },
+    {
+     "id": "3-4",
+     "title": "Discovered attacks",
+     "tasks": 5
+    },
+    {
+     "id": "3-5",
+     "title": "Discovered checks",
+     "tasks": 5
+    },
+    {
+     "id": "3-6",
+     "title": "Double checks",
+     "tasks": 5
+    },
+    {
+     "id": "3-7",
+     "title": "Deflection",
+     "tasks": 5
+    },
+    {
+     "id": "3-8",
+     "title": "Attraction",
+     "tasks": 5
+    },
+    {
+     "id": "3-9",
+     "title": "Clearance",
+     "tasks": 5
+    },
+    {
+     "id": "3-10",
+     "title": "Interference",
+     "tasks": 5
+    },
+    {
+     "id": "3-11",
+     "title": "X-ray attacks",
+     "tasks": 5
+    },
+    {
+     "id": "3-12",
+     "title": "Trapping pieces",
+     "tasks": 5
+    },
+    {
+     "id": "3-13",
+     "title": "Spotting free pieces",
+     "tasks": 5
+    },
+    {
+     "id": "3-14",
+     "title": "Removing the defender",
+     "tasks": 5
+    },
+    {
+     "id": "3-15",
+     "title": "Sacrifices",
+     "tasks": 5
+    },
+    {
+     "id": "3-16",
+     "title": "In-between moves",
+     "tasks": 5
+    },
+    {
+     "id": "3-17",
+     "title": "Quiet moves",
+     "tasks": 5
+    },
+    {
+     "id": "3-18",
+     "title": "Only moves (defense)",
+     "tasks": 5
+    },
+    {
+     "id": "3-19",
+     "title": "Zugzwang",
+     "tasks": 5
+    },
+    {
+     "id": "3-20",
+     "title": "Advanced pawns",
+     "tasks": 5
+    },
+    {
+     "id": "3-21",
+     "title": "Forks II",
+     "tasks": 5
+    },
+    {
+     "id": "3-22",
+     "title": "Pins II",
+     "tasks": 5
+    },
+    {
+     "id": "3-23",
+     "title": "Skewers II",
+     "tasks": 5
+    },
+    {
+     "id": "3-24",
+     "title": "Discovered attacks II",
+     "tasks": 5
+    },
+    {
+     "id": "3-25",
+     "title": "Discovered checks II",
+     "tasks": 5
+    },
+    {
+     "id": "3-26",
+     "title": "Double checks II",
+     "tasks": 5
+    },
+    {
+     "id": "3-27",
+     "title": "Deflection II",
+     "tasks": 5
+    },
+    {
+     "id": "3-28",
+     "title": "Attraction II",
+     "tasks": 5
+    },
+    {
+     "id": "3-29",
+     "title": "Clearance II",
+     "tasks": 5
+    },
+    {
+     "id": "3-30",
+     "title": "Interference II",
+     "tasks": 5
+    },
+    {
+     "id": "3-31",
+     "title": "X-ray attacks II",
+     "tasks": 5
+    },
+    {
+     "id": "3-32",
+     "title": "Trapping pieces II",
+     "tasks": 5
+    },
+    {
+     "id": "3-33",
+     "title": "Spotting free pieces II",
+     "tasks": 5
+    },
+    {
+     "id": "3-34",
+     "title": "Removing the defender II",
+     "tasks": 5
+    },
+    {
+     "id": "3-35",
+     "title": "Sacrifices II",
+     "tasks": 5
+    },
+    {
+     "id": "3-36",
+     "title": "In-between moves II",
+     "tasks": 5
+    },
+    {
+     "id": "3-37",
+     "title": "Quiet moves II",
+     "tasks": 5
+    },
+    {
+     "id": "3-38",
+     "title": "Only moves (defense) II",
+     "tasks": 5
+    },
+    {
+     "id": "3-39",
+     "title": "Zugzwang II",
+     "tasks": 5
+    },
+    {
+     "id": "3-40",
+     "title": "Advanced pawns II",
+     "tasks": 5
+    }
+   ]
+  },
+  {
+   "id": 4,
+   "title": "Openings",
+   "icon": "♘",
+   "about": "Forty real openings. Play the moves yourself, then solve puzzles from games in that opening.",
+   "lessons": [
+    {
+     "id": "4-1",
+     "title": "Italian Game",
+     "tasks": 5
+    },
+    {
+     "id": "4-2",
+     "title": "Ruy Lopez (Spanish)",
+     "tasks": 5
+    },
+    {
+     "id": "4-3",
+     "title": "Scotch Game",
+     "tasks": 5
+    },
+    {
+     "id": "4-4",
+     "title": "Four Knights Game",
+     "tasks": 5
+    },
+    {
+     "id": "4-5",
+     "title": "Three Knights Opening",
+     "tasks": 5
+    },
+    {
+     "id": "4-6",
+     "title": "Petrov's Defense",
+     "tasks": 5
+    },
+    {
+     "id": "4-7",
+     "title": "Philidor Defense",
+     "tasks": 5
+    },
+    {
+     "id": "4-8",
+     "title": "Vienna Game",
+     "tasks": 5
+    },
+    {
+     "id": "4-9",
+     "title": "Bishop's Opening",
+     "tasks": 5
+    },
+    {
+     "id": "4-10",
+     "title": "King's Gambit Accepted",
+     "tasks": 5
+    },
+    {
+     "id": "4-11",
+     "title": "King's Gambit Declined",
+     "tasks": 5
+    },
+    {
+     "id": "4-12",
+     "title": "Center Game",
+     "tasks": 5
+    },
+    {
+     "id": "4-13",
+     "title": "Danish Gambit",
+     "tasks": 5
+    },
+    {
+     "id": "4-14",
+     "title": "Ponziani Opening",
+     "tasks": 5
+    },
+    {
+     "id": "4-15",
+     "title": "Elephant Gambit",
+     "tasks": 5
+    },
+    {
+     "id": "4-16",
+     "title": "Sicilian Defense",
+     "tasks": 5
+    },
+    {
+     "id": "4-17",
+     "title": "French Defense",
+     "tasks": 5
+    },
+    {
+     "id": "4-18",
+     "title": "Caro-Kann Defense",
+     "tasks": 5
+    },
+    {
+     "id": "4-19",
+     "title": "Scandinavian Defense",
+     "tasks": 5
+    },
+    {
+     "id": "4-20",
+     "title": "Pirc Defense",
+     "tasks": 5
+    },
+    {
+     "id": "4-21",
+     "title": "Modern Defense",
+     "tasks": 5
+    },
+    {
+     "id": "4-22",
+     "title": "Alekhine's Defense",
+     "tasks": 5
+    },
+    {
+     "id": "4-23",
+     "title": "Nimzowitsch Defense",
+     "tasks": 5
+    },
+    {
+     "id": "4-24",
+     "title": "Owen's Defense",
+     "tasks": 5
+    },
+    {
+     "id": "4-25",
+     "title": "Queen's Gambit Declined",
+     "tasks": 5
+    },
+    {
+     "id": "4-26",
+     "title": "Queen's Gambit Accepted",
+     "tasks": 5
+    },
+    {
+     "id": "4-27",
+     "title": "Slav Defense",
+     "tasks": 5
+    },
+    {
+     "id": "4-28",
+     "title": "Semi-Slav Defense",
+     "tasks": 5
+    },
+    {
+     "id": "4-29",
+     "title": "King's Indian Defense",
+     "tasks": 5
+    },
+    {
+     "id": "4-30",
+     "title": "Nimzo-Indian Defense",
+     "tasks": 5
+    },
+    {
+     "id": "4-31",
+     "title": "Grünfeld Defense",
+     "tasks": 5
+    },
+    {
+     "id": "4-32",
+     "title": "Benoni Defense",
+     "tasks": 5
+    },
+    {
+     "id": "4-33",
+     "title": "Dutch Defense",
+     "tasks": 5
+    },
+    {
+     "id": "4-34",
+     "title": "Englund Gambit",
+     "tasks": 5
+    },
+    {
+     "id": "4-35",
+     "title": "Blackmar–Diemer Gambit",
+     "tasks": 5
+    },
+    {
+     "id": "4-36",
+     "title": "Trompowsky Attack",
+     "tasks": 5
+    },
+    {
+     "id": "4-37",
+     "title": "Queen's Pawn Game & London",
+     "tasks": 5
+    },
+    {
+     "id": "4-38",
+     "title": "English Opening",
+     "tasks": 5
+    },
+    {
+     "id": "4-39",
+     "title": "Réti & Zukertort",
+     "tasks": 5
+    },
+    {
+     "id": "4-40",
+     "title": "Bird's Opening",
+     "tasks": 5
+    }
+   ]
+  },
+  {
+   "id": 5,
+   "title": "Middlegame & Attack",
+   "icon": "♛",
+   "about": "Attacking the king, sacrifices, defending, and turning an edge into a win.",
+   "lessons": [
+    {
+     "id": "5-1",
+     "title": "Kingside attack",
+     "tasks": 5
+    },
+    {
+     "id": "5-2",
+     "title": "Kingside attack II",
+     "tasks": 5
+    },
+    {
+     "id": "5-3",
+     "title": "Kingside attack III",
+     "tasks": 5
+    },
+    {
+     "id": "5-4",
+     "title": "Queenside play",
+     "tasks": 5
+    },
+    {
+     "id": "5-5",
+     "title": "Queenside play II",
+     "tasks": 5
+    },
+    {
+     "id": "5-6",
+     "title": "Attacking f7",
+     "tasks": 5
+    },
+    {
+     "id": "5-7",
+     "title": "Attacking f7 II",
+     "tasks": 5
+    },
+    {
+     "id": "5-8",
+     "title": "Exposed kings",
+     "tasks": 5
+    },
+    {
+     "id": "5-9",
+     "title": "Exposed kings II",
+     "tasks": 5
+    },
+    {
+     "id": "5-10",
+     "title": "Exposed kings III",
+     "tasks": 5
+    },
+    {
+     "id": "5-11",
+     "title": "Winning sacrifices",
+     "tasks": 5
+    },
+    {
+     "id": "5-12",
+     "title": "Winning sacrifices II",
+     "tasks": 5
+    },
+    {
+     "id": "5-13",
+     "title": "Advanced pawns",
+     "tasks": 5
+    },
+    {
+     "id": "5-14",
+     "title": "Advanced pawns II",
+     "tasks": 5
+    },
+    {
+     "id": "5-15",
+     "title": "Defending",
+     "tasks": 5
+    },
+    {
+     "id": "5-16",
+     "title": "Defending II",
+     "tasks": 5
+    },
+    {
+     "id": "5-17",
+     "title": "Saving the game",
+     "tasks": 5
+    },
+    {
+     "id": "5-18",
+     "title": "Saving the game II",
+     "tasks": 5
+    },
+    {
+     "id": "5-19",
+     "title": "Quiet killers",
+     "tasks": 5
+    },
+    {
+     "id": "5-20",
+     "title": "Quiet killers II",
+     "tasks": 5
+    },
+    {
+     "id": "5-21",
+     "title": "Crushing blows",
+     "tasks": 5
+    },
+    {
+     "id": "5-22",
+     "title": "Crushing blows II",
+     "tasks": 5
+    },
+    {
+     "id": "5-23",
+     "title": "Crushing blows III",
+     "tasks": 5
+    },
+    {
+     "id": "5-24",
+     "title": "Crushing blows IV",
+     "tasks": 5
+    },
+    {
+     "id": "5-25",
+     "title": "Getting the advantage",
+     "tasks": 5
+    },
+    {
+     "id": "5-26",
+     "title": "Getting the advantage II",
+     "tasks": 5
+    },
+    {
+     "id": "5-27",
+     "title": "Getting the advantage III",
+     "tasks": 5
+    },
+    {
+     "id": "5-28",
+     "title": "Middlegame forks",
+     "tasks": 5
+    },
+    {
+     "id": "5-29",
+     "title": "Middlegame pins",
+     "tasks": 5
+    },
+    {
+     "id": "5-30",
+     "title": "Breaking the defense",
+     "tasks": 5
+    },
+    {
+     "id": "5-31",
+     "title": "Deflect and win",
+     "tasks": 5
+    },
+    {
+     "id": "5-32",
+     "title": "Lure the king",
+     "tasks": 5
+    },
+    {
+     "id": "5-33",
+     "title": "Open the lines",
+     "tasks": 5
+    },
+    {
+     "id": "5-34",
+     "title": "Trapped pieces in the middlegame",
+     "tasks": 5
+    },
+    {
+     "id": "5-35",
+     "title": "Long attacks",
+     "tasks": 5
+    },
+    {
+     "id": "5-36",
+     "title": "Long attacks II",
+     "tasks": 5
+    },
+    {
+     "id": "5-37",
+     "title": "Discovered attacks in the middlegame",
+     "tasks": 5
+    },
+    {
+     "id": "5-38",
+     "title": "Middlegame tests",
+     "tasks": 5
+    },
+    {
+     "id": "5-39",
+     "title": "Middlegame tests II",
+     "tasks": 5
+    },
+    {
+     "id": "5-40",
+     "title": "Middlegame tests III",
+     "tasks": 5
+    }
+   ]
+  },
+  {
+   "id": 6,
+   "title": "Endgames",
+   "icon": "♔",
+   "about": "Pawn, rook, bishop, knight and queen endgames, promotion and zugzwang.",
+   "lessons": [
+    {
+     "id": "6-1",
+     "title": "Pawn endgames",
+     "tasks": 5
+    },
+    {
+     "id": "6-2",
+     "title": "Pawn endgames II",
+     "tasks": 5
+    },
+    {
+     "id": "6-3",
+     "title": "Pawn endgames III",
+     "tasks": 5
+    },
+    {
+     "id": "6-4",
+     "title": "Pawn endgames IV",
+     "tasks": 5
+    },
+    {
+     "id": "6-5",
+     "title": "Pawn endgames V",
+     "tasks": 5
+    },
+    {
+     "id": "6-6",
+     "title": "Rook endgames",
+     "tasks": 5
+    },
+    {
+     "id": "6-7",
+     "title": "Rook endgames II",
+     "tasks": 5
+    },
+    {
+     "id": "6-8",
+     "title": "Rook endgames III",
+     "tasks": 5
+    },
+    {
+     "id": "6-9",
+     "title": "Rook endgames IV",
+     "tasks": 5
+    },
+    {
+     "id": "6-10",
+     "title": "Rook endgames V",
+     "tasks": 5
+    },
+    {
+     "id": "6-11",
+     "title": "Rook endgames VI",
+     "tasks": 5
+    },
+    {
+     "id": "6-12",
+     "title": "Bishop endgames",
+     "tasks": 5
+    },
+    {
+     "id": "6-13",
+     "title": "Bishop endgames II",
+     "tasks": 5
+    },
+    {
+     "id": "6-14",
+     "title": "Bishop endgames III",
+     "tasks": 5
+    },
+    {
+     "id": "6-15",
+     "title": "Knight endgames",
+     "tasks": 5
+    },
+    {
+     "id": "6-16",
+     "title": "Knight endgames II",
+     "tasks": 5
+    },
+    {
+     "id": "6-17",
+     "title": "Knight endgames III",
+     "tasks": 5
+    },
+    {
+     "id": "6-18",
+     "title": "Queen endgames",
+     "tasks": 5
+    },
+    {
+     "id": "6-19",
+     "title": "Queen endgames II",
+     "tasks": 5
+    },
+    {
+     "id": "6-20",
+     "title": "Queen endgames III",
+     "tasks": 5
+    },
+    {
+     "id": "6-21",
+     "title": "Queen and rook endgames",
+     "tasks": 5
+    },
+    {
+     "id": "6-22",
+     "title": "Queen and rook endgames II",
+     "tasks": 5
+    },
+    {
+     "id": "6-23",
+     "title": "Promote!",
+     "tasks": 5
+    },
+    {
+     "id": "6-24",
+     "title": "Promote! II",
+     "tasks": 5
+    },
+    {
+     "id": "6-25",
+     "title": "Promote! III",
+     "tasks": 5
+    },
+    {
+     "id": "6-26",
+     "title": "Under-promotion",
+     "tasks": 5
+    },
+    {
+     "id": "6-27",
+     "title": "Passed pawns",
+     "tasks": 5
+    },
+    {
+     "id": "6-28",
+     "title": "Passed pawns II",
+     "tasks": 5
+    },
+    {
+     "id": "6-29",
+     "title": "Zugzwang",
+     "tasks": 5
+    },
+    {
+     "id": "6-30",
+     "title": "Zugzwang II",
+     "tasks": 5
+    },
+    {
+     "id": "6-31",
+     "title": "Endgame tactics: forks",
+     "tasks": 5
+    },
+    {
+     "id": "6-32",
+     "title": "Endgame tactics: skewers",
+     "tasks": 5
+    },
+    {
+     "id": "6-33",
+     "title": "Endgame tactics: pins",
+     "tasks": 5
+    },
+    {
+     "id": "6-34",
+     "title": "Hold the draw",
+     "tasks": 5
+    },
+    {
+     "id": "6-35",
+     "title": "Hold the draw II",
+     "tasks": 5
+    },
+    {
+     "id": "6-36",
+     "title": "Endgame defense",
+     "tasks": 5
+    },
+    {
+     "id": "6-37",
+     "title": "Mate in the endgame",
+     "tasks": 5
+    },
+    {
+     "id": "6-38",
+     "title": "Endgame tests",
+     "tasks": 5
+    },
+    {
+     "id": "6-39",
+     "title": "Endgame tests II",
+     "tasks": 5
+    },
+    {
+     "id": "6-40",
+     "title": "Endgame tests III",
+     "tasks": 5
+    }
+   ]
+  },
+  {
+   "id": 7,
+   "title": "Master Class",
+   "icon": "♕",
+   "about": "Long combinations and puzzles from master games, up to grandmaster level.",
+   "lessons": [
+    {
+     "id": "7-1",
+     "title": "Mate in four",
+     "tasks": 5
+    },
+    {
+     "id": "7-2",
+     "title": "Mate in four II",
+     "tasks": 5
+    },
+    {
+     "id": "7-3",
+     "title": "Mate in five+",
+     "tasks": 5
+    },
+    {
+     "id": "7-4",
+     "title": "Mate in five+ II",
+     "tasks": 5
+    },
+    {
+     "id": "7-5",
+     "title": "Deep combinations",
+     "tasks": 5
+    },
+    {
+     "id": "7-6",
+     "title": "Deep combinations II",
+     "tasks": 5
+    },
+    {
+     "id": "7-7",
+     "title": "Deep combinations III",
+     "tasks": 5
+    },
+    {
+     "id": "7-8",
+     "title": "From titled players' games",
+     "tasks": 5
+    },
+    {
+     "id": "7-9",
+     "title": "From titled players' games II",
+     "tasks": 5
+    },
+    {
+     "id": "7-10",
+     "title": "From titled players' games III",
+     "tasks": 5
+    },
+    {
+     "id": "7-11",
+     "title": "Master vs master",
+     "tasks": 5
+    },
+    {
+     "id": "7-12",
+     "title": "Master vs master II",
+     "tasks": 5
+    },
+    {
+     "id": "7-13",
+     "title": "Super grandmasters",
+     "tasks": 5
+    },
+    {
+     "id": "7-14",
+     "title": "Expert forks",
+     "tasks": 5
+    },
+    {
+     "id": "7-15",
+     "title": "Expert pins",
+     "tasks": 5
+    },
+    {
+     "id": "7-16",
+     "title": "Expert skewers",
+     "tasks": 5
+    },
+    {
+     "id": "7-17",
+     "title": "Expert discovered attacks",
+     "tasks": 5
+    },
+    {
+     "id": "7-18",
+     "title": "Expert deflection",
+     "tasks": 5
+    },
+    {
+     "id": "7-19",
+     "title": "Expert attraction",
+     "tasks": 5
+    },
+    {
+     "id": "7-20",
+     "title": "Expert clearance",
+     "tasks": 5
+    },
+    {
+     "id": "7-21",
+     "title": "Expert interference",
+     "tasks": 5
+    },
+    {
+     "id": "7-22",
+     "title": "Expert quiet moves",
+     "tasks": 5
+    },
+    {
+     "id": "7-23",
+     "title": "Expert in-between moves",
+     "tasks": 5
+    },
+    {
+     "id": "7-24",
+     "title": "Expert sacrifices",
+     "tasks": 5
+    },
+    {
+     "id": "7-25",
+     "title": "Expert sacrifices II",
+     "tasks": 5
+    },
+    {
+     "id": "7-26",
+     "title": "Expert defense",
+     "tasks": 5
+    },
+    {
+     "id": "7-27",
+     "title": "Expert zugzwang",
+     "tasks": 5
+    },
+    {
+     "id": "7-28",
+     "title": "Expert endgames",
+     "tasks": 5
+    },
+    {
+     "id": "7-29",
+     "title": "Expert rook endgames",
+     "tasks": 5
+    },
+    {
+     "id": "7-30",
+     "title": "Expert pawn endgames",
+     "tasks": 5
+    },
+    {
+     "id": "7-31",
+     "title": "Expert mate in two",
+     "tasks": 5
+    },
+    {
+     "id": "7-32",
+     "title": "Expert mate in three",
+     "tasks": 5
+    },
+    {
+     "id": "7-33",
+     "title": "Expert kingside attacks",
+     "tasks": 5
+    },
+    {
+     "id": "7-34",
+     "title": "Expert exposed kings",
+     "tasks": 5
+    },
+    {
+     "id": "7-35",
+     "title": "Grandmaster level",
+     "tasks": 5
+    },
+    {
+     "id": "7-36",
+     "title": "Grandmaster level II",
+     "tasks": 5
+    },
+    {
+     "id": "7-37",
+     "title": "Grandmaster level III",
+     "tasks": 5
+    },
+    {
+     "id": "7-38",
+     "title": "Grandmaster level IV",
+     "tasks": 5
+    },
+    {
+     "id": "7-39",
+     "title": "The final exam",
+     "tasks": 5
+    },
+    {
+     "id": "7-40",
+     "title": "Champion",
+     "tasks": 5
+    }
+   ]
+  }
+ ],
+ "credit": "Puzzles from the Lichess puzzle database (CC0)"
+}

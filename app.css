@@ -154,3 +154,30 @@ body.is-admin .pname { cursor: pointer; text-decoration: underline dotted; text-
 .update-modal { position: fixed; inset: 0; z-index: 60; background: rgba(0, 0, 0, .6); display: grid; place-items: center; padding: 16px; }
 .update-card { background: var(--panel); border: 1px solid var(--accent); border-radius: 14px; padding: 20px; max-width: 460px; width: 100%; }
 .update-card ul { padding-left: 20px; display: grid; gap: 6px; margin: 0 0 16px; }.update-card h2 { text-transform: none; letter-spacing: 0; color: var(--text); font-size: 20px; }
+
+/* training */
+.bar { display: block; height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; margin: 6px 0 2px; }
+.bar i { display: block; height: 100%; background: var(--win); border-radius: 99px; }
+.courses { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.course { display: grid; grid-template-columns: 56px 1fr; gap: 12px; text-align: left; padding: 14px; align-items: start; }
+.course .icon { font: 40px/1 "Segoe UI Symbol", serif; text-align: center; }
+.course b { display: block; font-size: 17px; margin-bottom: 4px; }
+.course .dim { display: block; }
+.course:hover { background: #22324a; }
+.lessons { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
+.lesson { display: grid; grid-template-columns: 34px 1fr; gap: 10px; align-items: center; text-align: left; padding: 10px; }
+.lesson .num { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--bg); font-weight: 700; }
+.lesson .dim { display: block; }
+.lesson.next { border-color: var(--accent); }
+.lesson.done .num { background: #2d8a5f; }
+.lesson.perfect .num { background: #b8860b; color: #000; }
+.lesson:hover { background: #22324a; }
+.dots { display: flex; gap: 6px; }
+.dotx { width: 12px; height: 12px; border-radius: 50%; background: var(--line); }
+.dotx.now { background: var(--accent); }
+.dotx.good { background: var(--win); }
+.dotx.bad { background: #e0a030; }
+.feedback { min-height: 1.5em; font-weight: 600; }
+.feedback.good { color: var(--win); }
+.feedback.bad { color: var(--loss); }
+button.promo { font: 40px/1 "Segoe UI Symbol", serif; width: 64px; height: 64px; }

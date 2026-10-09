@@ -9,13 +9,27 @@
 #   APPSTORE_P8_BASE64      the downloaded AuthKey_XXXX.p8, base64-encoded
 #
 # Run it from the Actions tab ("Run workflow"), or push a tag like ios-v1.
+#
+# "target: phone" instead makes an ad hoc build for the iPhones registered in
+# the developer account (Devices), attaches it to a GitHub release named
+# phone-build-N, and prints the itms-services install link. Only registered
+# phones can install it.
 
 name: iOS app
 
 on:
   workflow_dispatch:
+    inputs:
+      target:
+        description: "app-store = upload to App Store Connect; phone = install straight onto registered iPhones"
+        type: choice
+        options: [app-store, phone]
+        default: app-store
   push:
     tags: ["ios-v*"]
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -67,14 +81,17 @@ jobs:
             -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
             TARGETED_DEVICE_FAMILY=1 CODE_SIGNING_ALLOWED=NO build | tail -n 25
 
-      - name: Sign and upload to App Store Connect
+      - name: Sign and upload to App Store Connect (or make a phone build)
         if: env.HAS_SIGNING == 'true'
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
           APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
           APPSTORE_P8_BASE64: ${{ secrets.APPSTORE_P8_BASE64 }}
+          TARGET: ${{ inputs.target || 'app-store' }}
+          GH_TOKEN: ${{ github.token }}
         run: |
+          if [ "$TARGET" = "phone" ]; then METHOD=release-testing; DEST=export; else METHOD=app-store-connect; DEST=upload; fi
           KEY="$RUNNER_TEMP/AuthKey_$APPSTORE_KEY_ID.p8"
           echo "$APPSTORE_P8_BASE64" | base64 --decode > "$KEY"
           AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$KEY" -authenticationKeyID "$APPSTORE_KEY_ID" -authenticationKeyIssuerID "$APPSTORE_ISSUER_ID")
@@ -86,8 +103,8 @@ jobs:
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0"><dict>
-            <key>method</key><string>app-store-connect</string>
-            <key>destination</key><string>upload</string>
+            <key>method</key><string>$METHOD</string>
+            <key>destination</key><string>$DEST</string>
             <key>teamID</key><string>$APPLE_TEAM_ID</string>
             <key>signingStyle</key><string>automatic</string>
             <key>manageAppVersionAndBuildNumber</key><false/>
@@ -96,4 +113,32 @@ jobs:
           xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/App.xcarchive" \
             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/export" "${AUTH[@]}"
           rm -f "$KEY"
-          echo "Uploaded Elo Ladder $APP_VERSION (build ${{ github.run_number }}) to App Store Connect."
+          if [ "$TARGET" != "phone" ]; then
+            echo "Uploaded Elo Ladder $APP_VERSION (build ${{ github.run_number }}) to App Store Connect."
+            exit 0
+          fi
+          # Phone build: attach the .ipa and an install manifest to a release
+          TAG="phone-build-${{ github.run_number }}"
+          BASE="https://github.com/${{ github.repository }}/releases/download/$TAG"
+          mv "$RUNNER_TEMP"/export/*.ipa "$RUNNER_TEMP/EloLadder.ipa"
+          cat > "$RUNNER_TEMP/manifest.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict><key>items</key><array><dict>
+            <key>assets</key><array><dict>
+              <key>kind</key><string>software-package</string>
+              <key>url</key><string>$BASE/EloLadder.ipa</string>
+            </dict></array>
+            <key>metadata</key><dict>
+              <key>bundle-identifier</key><string>io.github.kaceiam.eloladder</string>
+              <key>bundle-version</key><string>$APP_VERSION</string>
+              <key>kind</key><string>software</string>
+              <key>title</key><string>Elo Ladder</string>
+            </dict>
+          </dict></array></dict></plist>
+          EOF
+          LINK="itms-services://?action=download-manifest&url=$BASE/manifest.plist"
+          gh release create "$TAG" "$RUNNER_TEMP/EloLadder.ipa" "$RUNNER_TEMP/manifest.plist" \
+            --prerelease --title "Phone test build ${{ github.run_number }}" \
+            --notes "Test build for registered iPhones only (it won't install on any other phone). Install link, open in Safari on the iPhone: $LINK"
+          echo "INSTALL LINK: $LINK"

@@ -656,14 +656,13 @@
     if (!name) return;
     const reason = prompt(`Report ${name}. What happened? (rude chat, cheating, bad name…)`);
     if (reason === null) return;
-    // No server here: the report goes by email to the support address (private,
-    // no account needed), or to the public support page until an address is set
+    // No server here: the report goes privately by email to the support address
+    // (no account needed). Reports are never posted anywhere public.
     const lines = G.chat.filter((c) => c.from === name).slice(-5).map((c) => `${c.from}: ${c.text}`).join("\n");
     const cfg = window.ELO_CONFIG || {};
     const subject = `Player report: ${name}`;
     const text = `Player reported: ${name}\nReason: ${reason || "(none given)"}\nWhere: Play a Friend\nReported by: ${profile.name}\n\nTheir recent chat:\n${lines || "(none)"}\n\nSent from the Elo Ladder app.`;
     if (cfg.supportEmail) location.href = `mailto:${cfg.supportEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`;
-    else window.open(`${cfg.supportPage || "https://github.com/kaceiam/elo-ladder/issues"}/new?labels=report&title=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`, "_blank", "noopener");
     if (confirm(`Thanks for reporting ${name}. Block them too?`)) blockOpponent();
   });
   function renderBlockedList() {

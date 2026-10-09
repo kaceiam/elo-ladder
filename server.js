@@ -12,6 +12,8 @@ const crypto = require("crypto");
 const os = require("os");
 const { Chess } = require("./vendor/chess.min.js");
 const { recordMatch } = require("./elo.js");
+const { checkName } = require("./names.js");
+const anticheat = require("./anticheat.js");
 
 const PORT = +process.env.PORT || 8080;
 const ROOT = __dirname;
@@ -73,6 +75,81 @@ function sanctionOf(p) {
       message: `This account is restricted until ${until}.${p.restriction.reason ? ` Reason: ${p.restriction.reason}` : ""}` };
   }
   return null;
+}
+
+// ---------- AI moderator: reports for the admin ----------
+
+// Reports: { id, at, kind: "cheating"|"name"|"same-network", severity: "low"|"medium"|"high",
+//   player, summary, gameId?, status: "open"|"dismissed"|"resolved", updatedAt }
+const REPORTS_FILE = path.join(DATA_DIR, "reports.json");
+let reports = [];
+try { reports = JSON.parse(fs.readFileSync(REPORTS_FILE, "utf8")); } catch {}
+let reportsTimer = null;
+function saveReports() {
+  clearTimeout(reportsTimer);
+  reportsTimer = setTimeout(() => {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(REPORTS_FILE + ".tmp", JSON.stringify(reports.slice(0, 2000), null, 1));
+    fs.renameSync(REPORTS_FILE + ".tmp", REPORTS_FILE);
+  }, 200);
+}
+const SEVERITY_RANK = { low: 0, medium: 1, high: 2 };
+const openReports = () => reports.filter((r) => r.status === "open");
+function notifyAdmins() {
+  const open = openReports().length;
+  for (const p of Object.values(players)) if (p.admin) send(p.name, { type: "reports", open });
+}
+// Adds a report, or updates the player's open report of the same kind (dedupeKey) instead of piling up
+function addReport({ kind, severity, player, summary, gameId = null, dedupeKey = null }) {
+  const key = dedupeKey || `${kind}:${player}`;
+  const existing = reports.find((r) => r.status === "open" && r.key === key);
+  if (existing) {
+    if (SEVERITY_RANK[severity] >= SEVERITY_RANK[existing.severity]) { existing.severity = severity; existing.summary = summary; }
+    existing.count = (existing.count || 1) + 1;
+    existing.updatedAt = Date.now();
+    if (gameId) existing.gameId = gameId;
+  } else {
+    reports.unshift({ id: newId(), key, at: Date.now(), updatedAt: Date.now(), kind, severity, player, summary, gameId, status: "open", count: 1 });
+  }
+  console.log(`[ai] ${severity} ${kind} report: ${player} — ${summary}`);
+  saveReports();
+  notifyAdmins();
+}
+
+// Second opinion on new names from the local AI (Ollama). If it's not
+// running, names are still checked by the rules in names.js.
+const OLLAMA_URL = process.env.OLLAMA_URL || "http://127.0.0.1:11434";
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "llama3.2:1b";
+const aiNameCache = new Map();
+async function aiNameVerdict(name) {
+  const key = name.toLowerCase();
+  if (aiNameCache.has(key)) return aiNameCache.get(key);
+  const prompt = `You moderate usernames for a chess game played by all ages, including kids.
+Username: "${name}"
+Is this username clearly inappropriate (sexual, hateful, slurs, harassment, drugs, extremist, or impersonating staff)? Normal gamer names, nicknames, and chess or fantasy words like "killer", "slayer", "dark" are fine.
+Reply JSON only: {"allowed": true or false, "reason": "short reason"}`;
+  try {
+    const res = await fetch(`${OLLAMA_URL}/api/chat`, {
+      method: "POST", signal: AbortSignal.timeout(10_000),
+      body: JSON.stringify({ model: OLLAMA_MODEL, stream: false, format: "json", options: { temperature: 0 }, messages: [{ role: "user", content: prompt }] }),
+    });
+    const v = JSON.parse((await res.json()).message.content);
+    const verdict = { allowed: v.allowed !== false, reason: String(v.reason || "").slice(0, 120), checked: true };
+    aiNameCache.set(key, verdict);
+    return verdict;
+  } catch {
+    return { allowed: true, checked: false };
+  }
+}
+// Full name check for players: rules first, then the AI
+async function screenName(name, who) {
+  const rule = checkName(name);
+  if (!rule.ok) fail(400, rule.reason);
+  const ai = await aiNameVerdict(name);
+  if (!ai.allowed) {
+    addReport({ kind: "name", severity: "low", player: who || name, summary: `Tried the name "${name}" — blocked by the AI moderator (${ai.reason || "inappropriate"}).`, dedupeKey: `name-try:${name.toLowerCase()}` });
+    fail(400, "That name isn't allowed. Please pick a different one.");
+  }
 }
 
 function logSanction(p, action, by, extra = {}) {
@@ -239,6 +316,7 @@ function createGame(creator, tc, color) {
     creator, creatorColor: color, white: null, black: null,
     chess: new Chess(), clocks: { w: mins * 60_000, b: mins * 60_000 }, turnStart: null,
     result: null, reason: null, changes: null, drawOffer: null, rematch: new Set(), next: null, chat: [],
+    moveTimes: { w: [], b: [] },
   };
   games.set(g.id, g);
   return g;
@@ -249,6 +327,9 @@ function startGame(g, joiner) {
   g.white = color === "w" ? g.creator : joiner;
   g.black = color === "w" ? joiner : g.creator;
   g.status = "playing";
+  // Two accounts on one network playing each other can be one person farming rating
+  const ipW = players[g.white].lastIp, ipB = players[g.black].lastIp;
+  g.sameNet = !!(ipW && ipW === ipB);
   dropChallenges(g.white); dropChallenges(g.black);
   pushFriends(g.white, g.black); // friends see them as "playing"
 }
@@ -280,11 +361,12 @@ function endGame(g, result, reason) {
     const score = result === null ? null : color === "w" ? result : 1 - result;
     (p.history || (p.history = [])).unshift({
       at: Date.now(), opp: color === "w" ? g.black : g.white, color, tc: g.tc, result: score, reason,
-      change: g.changes ? g.changes[color] : 0, elo: Math.round(p.elo), moves: g.chess.history().length,
+      change: g.changes ? g.changes[color] : 0, elo: Math.round(p.elo), moves: g.chess.history().length, id: g.id,
     });
     p.history = p.history.slice(0, 100);
   }
   savePlayers();
+  if (result !== null) reviewGame(g);
   pushGame(g);
   pushLobby();
   pushFriends(g.white, g.black);
@@ -299,6 +381,43 @@ function checkPositionEnd(g) {
   const reason = c.in_stalemate() ? "stalemate" : c.in_threefold_repetition() ? "repetition"
     : c.insufficient_material() ? "insufficient material" : "50-move rule";
   endGame(g, 0.5, reason);
+}
+
+// AI review of a finished rated game: same-network check now, engine
+// analysis in the background (it takes ~10 seconds per game).
+function reviewGame(g) {
+  const accounts = { w: players[g.white], b: players[g.black] };
+  if (g.sameNet) {
+    const pair = [g.white, g.black].sort();
+    addReport({ kind: "same-network", severity: "low", player: g.white,
+      summary: `${g.white} and ${g.black} played a rated game from the same network. Fine for family or friends at one house — but could be one person boosting a second account.`,
+      gameId: g.id, dedupeKey: `same-network:${pair.join("|")}` });
+  }
+  const moves = g.chess.history({ verbose: true });
+  if (moves.length < 20) return; // too short to say anything
+  anticheat.analyzeGame(moves).then((stats) => {
+    for (const color of ["w", "b"]) {
+      const p = accounts[color];
+      if (!p || !stats[color] || !stats[color].moves) continue;
+      const s = { ...stats[color], at: Date.now(), gameId: g.id };
+      const entry = (p.history || []).find((h) => h.id === g.id);
+      if (entry) entry.ai = { accuracy: s.accuracy, match: s.match, acpl: s.acpl, moves: s.moves };
+      // Judge against the rating they had going into the game
+      const elo = p.elo - (g.changes ? g.changes[color] : 0);
+      const flag = anticheat.judge(s, elo, g.moveTimes[color]);
+      s.flag = flag ? flag.severity : null;
+      p.aiRecent = [s, ...(p.aiRecent || [])].slice(0, 10);
+      if (flag) addReport({ kind: "cheating", severity: flag.severity, player: p.name, summary: flag.summary, gameId: g.id });
+      // Several flagged games, or the last games added up, look like an engine
+      const flagged = p.aiRecent.filter((r) => r.flag).length;
+      const combined = anticheat.judge(anticheat.combine(p.aiRecent), elo, null, { label: `last ${p.aiRecent.length} games` });
+      if (flagged >= 2 || (combined && p.aiRecent.length >= 2)) {
+        addReport({ kind: "cheating", severity: flagged >= 2 ? "high" : combined.severity, player: p.name, gameId: g.id,
+          summary: `${flagged >= 2 ? `Flagged in ${flagged} of their last ${p.aiRecent.length} games. ` : ""}${(combined || flag).summary}` });
+      }
+    }
+    savePlayers();
+  }).catch((err) => console.error("[ai] analysis failed:", err.message));
 }
 
 // Throw a player out right now: forfeit their game, clear their seeks, queue
@@ -434,7 +553,7 @@ function allowSignup(ip) {
 const lastChat = new Map(); // name -> time of last chat message
 
 const actions = {
-  login(body, me, ip) {
+  async login(body, me, ip) {
     // A device that already has an account stays that account (even if it was renamed)
     const owner = body.token && tokens.get(body.token);
     if (owner) {
@@ -456,6 +575,8 @@ const actions = {
     }
     if (bannedIps.has(ip)) fail(403, "New accounts can't be made from this network.");
     if (isAdminName(name) && !keyMatches(body.adminKey)) fail(401, "That name is reserved. Enter the admin key to claim it.", { needKey: true });
+    if (!isAdminName(name)) await screenName(name);
+    if (findPlayer(name)) fail(409, "That name is taken"); // someone grabbed it while the AI was checking
     if (!allowSignup(ip)) fail(429, "Too many new players from your network — try again later");
     const p = { name, elo: 1200, games: 0, wins: 0, losses: 0, draws: 0, token: crypto.randomBytes(16).toString("hex"),
       createdAt: Date.now(), lastIp: ip };
@@ -523,6 +644,7 @@ const actions = {
     const mv = g.chess.move({ from: body.from, to: body.to, promotion: body.promotion || "q" });
     if (!mv) fail(400, "Illegal move");
     if (g.base && g.turnStart) g.clocks[color] += g.inc;
+    if (g.turnStart) g.moveTimes[color].push(now - g.turnStart);
     // Clocks start once White has made the first move
     g.turnStart = now;
     if (g.drawOffer && g.drawOffer !== color) g.drawOffer = null;
@@ -683,11 +805,12 @@ const actions = {
   },
 
   // Names are permanent except for one change every 180 days
-  rename(body, me) {
+  async rename(body, me) {
     const p = players[me];
     const name = String(body.name || "").trim();
     if (!NAME_RULE.test(name)) fail(400, "Names are 2–20 letters, numbers, spaces, _ or -");
     if (name === me) fail(400, "That's already your name");
+    if (!p.admin) await screenName(name, me);
     const next = (p.nameChangedAt || 0) + NAME_COOLDOWN_MS;
     if (Date.now() < next) fail(429, `You can change your name again on ${new Date(next).toDateString()}`);
     const taken = findPlayer(name);
@@ -730,9 +853,34 @@ const actions = {
       friends: friendsOf(p.name).filter((n) => players[n]).map((n) => ({ name: n, status: playerStatus(n) })),
       requests: requestsOf(p.name),
       history: p.history || [], chatLog: p.chatLog || [],
+      ai: p.aiRecent && p.aiRecent.length ? { games: p.aiRecent.length, flagged: p.aiRecent.filter((r) => r.flag).length, ...anticheat.combine(p.aiRecent) } : null,
+      reports: reports.filter((r) => r.player === p.name).slice(0, 20),
       currentGame: g ? { id: g.id, status: g.status, tc: g.tc, white: g.white, black: g.black,
         moves: g.chess.history().length, pgn: g.chess.pgn(), chat: g.chat.slice(-30) } : null,
     };
+  },
+
+  adminReports(body, me) {
+    requireAdmin(me);
+    const status = ["open", "dismissed", "resolved", "all"].includes(body.status) ? body.status : "open";
+    const list = reports.filter((r) => status === "all" || r.status === status)
+      .sort((a, b) => (b.status === "open") - (a.status === "open") || SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity] || b.updatedAt - a.updatedAt)
+      .slice(0, 200)
+      .map((r) => ({ ...r, playerExists: !!findPlayer(r.player), banned: !!(findPlayer(r.player) || {}).ban }));
+    return { reports: list, open: openReports().length };
+  },
+
+  adminReportUpdate(body, me) {
+    requireAdmin(me);
+    const r = reports.find((x) => x.id === body.id);
+    if (!r) fail(404, "Report not found");
+    if (!["open", "dismissed", "resolved"].includes(body.status)) fail(400, "Unknown status");
+    r.status = body.status;
+    r.updatedAt = Date.now();
+    r.handledBy = me;
+    saveReports();
+    notifyAdmins();
+    return { ok: true };
   },
 
   adminKick(body, me) {
@@ -792,6 +940,8 @@ const actions = {
     const name = String(body.newName || "").trim();
     if (!NAME_RULE.test(name)) fail(400, "Names are 2–20 letters, numbers, spaces, _ or -");
     if (name === p.name) fail(400, "That's already their name");
+    const rule = checkName(name, { allowStaffNames: p.admin });
+    if (!rule.ok) fail(400, rule.reason);
     const taken = findPlayer(name);
     if (taken && taken !== p) fail(409, "That name is taken");
     if (isAdminName(name) && !p.admin) fail(409, "That name is reserved");
@@ -843,6 +993,7 @@ function openStream(req, res, url) {
   const g = activeGameOf(me.name);
   res.write(`data: ${JSON.stringify({ type: "game", game: g ? gameView(g) : null })}\n\n`);
   sendQueue(me.name);
+  if (me.admin) res.write(`data: ${JSON.stringify({ type: "reports", open: openReports().length })}\n\n`);
   pushLobby();
   pushFriends(me.name); // sends our list, and friends see us come online
   if (g) pushGame(g); // opponent sees us come back online
@@ -881,6 +1032,10 @@ http.createServer((req, res) => {
     req.on("data", (c) => { body += c; if (body.length > 10_000) req.destroy(); });
     req.on("end", () => {
       const reply = (status, obj) => { res.writeHead(status, { "Content-Type": "application/json" }); res.end(JSON.stringify(obj)); };
+      const onError = (err) => {
+        if (!(err instanceof HttpError)) console.error(err);
+        reply(err.status || 500, err instanceof HttpError ? { error: err.message, ...err.extra } : { error: "Server error" });
+      };
       try {
         const action = actions[url.pathname.slice(5)];
         if (!action) fail(404, "Unknown action");
@@ -892,10 +1047,9 @@ http.createServer((req, res) => {
           refuseIfSanctioned(me);
           me.lastIp = ip;
         }
-        reply(200, action(data, me && me.name, ip));
+        Promise.resolve(action(data, me && me.name, ip)).then((r) => reply(200, r), onError);
       } catch (err) {
-        if (!(err instanceof HttpError)) console.error(err);
-        reply(err.status || 500, err instanceof HttpError ? { error: err.message, ...err.extra } : { error: "Server error" });
+        onError(err);
       }
     });
     return;
@@ -907,6 +1061,15 @@ http.createServer((req, res) => {
   for (const ip of lanAddresses()) console.log(`  same Wi-Fi:      http://${ip}:${PORT}`);
   console.log(`  admin account:  ${ADMIN_NAME} (key for new devices is in ${path.relative(ROOT, ADMIN_KEY_FILE)})`);
 });
+
+// Names created before the name rules existed get reported once for review
+for (const p of Object.values(players)) {
+  if (p.admin || p.nameScanned) continue;
+  const rule = checkName(p.name);
+  if (!rule.ok) addReport({ kind: "name", severity: "low", player: p.name, summary: `Existing name breaks the name rules: ${rule.reason}.` });
+  p.nameScanned = true;
+}
+savePlayers();
 
 function lanAddresses() {
   const ips = [];

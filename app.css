@@ -142,3 +142,9 @@ a.btn:hover { border-color: var(--accent); }
 button.danger { background: var(--loss); border-color: var(--loss); color: #fff; }
 body.is-admin .pname { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
 @media (max-width: 760px) { .admin { grid-template-columns: 1fr; } .admin .list { max-height: 200px; } }
+/* AI reports */
+.reports { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin-top: 12px; }
+.reports .list { max-height: 360px; overflow-y: auto; }
+.report { border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: 8px; padding: 10px; background: var(--panel); }
+.report.high { border-left-color: var(--loss); }
+.report.medium { border-left-color: #e0a030; }

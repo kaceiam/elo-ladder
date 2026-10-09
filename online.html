@@ -44,6 +44,19 @@
       <h2 style="margin: 0">🛡 Admin</h2>
       <button id="adminClose">Close</button>
     </div>
+    <div class="reports">
+      <div class="row" style="justify-content: space-between">
+        <h3 style="margin: 0">🤖 AI Reports <span class="dim" id="reportCount"></span></h3>
+        <select id="reportFilter" style="flex: 0 0 auto">
+          <option value="open">Open</option>
+          <option value="all">All</option>
+          <option value="resolved">Resolved</option>
+          <option value="dismissed">Dismissed</option>
+        </select>
+      </div>
+      <div class="dim small" style="margin: 4px 0 8px">The AI moderator checks every rated game for engine use, every new name, and same-network games. You decide what to do.</div>
+      <div class="list" id="reportList"></div>
+    </div>
     <form id="adminSearchForm" class="row" style="margin-top: 12px">
       <input type="text" id="adminQuery" placeholder="Search any player's name" autocomplete="off">
       <button>Search</button>
@@ -242,6 +255,7 @@
 <script src="pwa.js"></script>
 <script src="vendor/chess.min.js"></script>
 <script src="elo.js"></script>
+<script src="names.js"></script>
 <script src="board.js"></script>
 <script src="vendor/qrcode.min.js"></script>
 <script>
@@ -324,6 +338,8 @@
     e.preventDefault();
     $("loginErr").textContent = "";
     const name = $("loginName").value.trim();
+    const rule = EloNames.checkName(name, { allowStaffNames: true }); // the server double-checks, and lets the admin name through with the key
+    if (!rule.ok) { $("loginErr").textContent = rule.reason; return; }
     if (!confirm(`Play as "${name}"? This name stays with you — changes are limited to once every 180 days.`)) return;
     try { await login(name); }
     catch (err) { $("loginErr").textContent = err.message; }
@@ -382,6 +398,9 @@
       }
     } else if (msg.type === "removed") {
       showBlocked(msg.kind, msg.message, msg.until, msg.reason);
+    } else if (msg.type === "reports") {
+      setReportCount(msg.open);
+      if (!$("adminPanel").hidden) loadReports();
     } else if (msg.type === "notice") {
       $("noticeBar").textContent = msg.text;
       $("noticeBar").hidden = false;
@@ -703,10 +722,49 @@
   const when = (t) => (t ? new Date(t).toLocaleString() : "—");
   let adminName = null;
 
+  // ---- AI reports ----
+  const KIND_LABEL = { cheating: "♟ Possible cheating", name: "🏷 Name", "same-network": "🌐 Same network" };
+
+  function setReportCount(open) {
+    $("adminBtn").textContent = open ? `🛡 Admin (${open})` : "🛡 Admin";
+    $("reportCount").textContent = open ? `· ${open} open` : "· all clear";
+  }
+
+  async function loadReports() {
+    try {
+      const { reports, open } = await api("adminReports", { status: $("reportFilter").value });
+      setReportCount(open);
+      $("reportList").innerHTML = reports.map((r) => `
+        <div class="report ${r.severity}">
+          <div class="row" style="justify-content: space-between">
+            <div><span class="tag ${r.severity === "high" ? "bad" : r.severity === "medium" ? "warn" : ""}">${r.severity}</span>
+              <b>${KIND_LABEL[r.kind] || r.kind}</b> · <a href="#" data-admin-open="${esc(r.player)}">${esc(r.player)}</a>
+              ${r.banned ? `<span class="tag bad">banned</span>` : ""}${r.count > 1 ? ` <span class="dim">×${r.count}</span>` : ""}</div>
+            <span class="dim small">${when(r.updatedAt)}</span>
+          </div>
+          <div style="margin: 6px 0">${esc(r.summary)}</div>
+          ${r.status === "open" ? `<div class="row">
+              <button data-admin-open="${esc(r.player)}">Open player</button>
+              <button data-report="${r.id}" data-status="resolved">Mark handled</button>
+              <button data-report="${r.id}" data-status="dismissed">Dismiss — not a problem</button>
+            </div>` : `<div class="dim small">${r.status}${r.handledBy ? ` by ${esc(r.handledBy)}` : ""}</div>`}
+        </div>`).join("") || `<div class="empty">${$("reportFilter").value === "open" ? "Nothing to review. 🎉" : "No reports."}</div>`;
+    } catch (err) { $("adminErr").textContent = err.message; }
+  }
+  $("reportFilter").addEventListener("change", loadReports);
+  $("reportList").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-report]");
+    if (!b) return;
+    b.disabled = true;
+    try { await api("adminReportUpdate", { id: b.dataset.report, status: b.dataset.status }); } catch (err) { $("adminErr").textContent = err.message; }
+    loadReports();
+  });
+
   function openAdmin(name) {
     if (!me || !me.admin) return;
     $("adminPanel").hidden = false;
     $("adminPanel").scrollIntoView({ behavior: "smooth" });
+    loadReports();
     if (name) loadAdminPlayer(name);
     else { $("adminQuery").focus(); adminSearch(""); }
   }
@@ -761,6 +819,11 @@
       </div>
       <p>${status}</p>
       ${actions}
+      ${d.ai ? `<div class="banner" style="margin: 12px 0"><b>🤖 AI cheat check</b> (last ${d.ai.games} analyzed games):
+        ${d.ai.accuracy}% accuracy, engine's top move ${Math.round(d.ai.match * 100)}% of the time${d.ai.acpl !== null ? `, average loss ${d.ai.acpl}` : ""}.
+        ${d.ai.flagged ? `<b class="down">Flagged in ${d.ai.flagged} game${d.ai.flagged > 1 ? "s" : ""}.</b>` : `<span class="up">Looks human.</span>`}
+        <div class="dim small">Typical humans match the engine 25–45% of the time; engines match 70%+.</div></div>` : ""}
+      ${d.reports.length ? `<div class="dim small">AI reports: ${d.reports.map((r) => `${KIND_LABEL[r.kind] || r.kind} (${r.severity}, ${r.status})`).join(" · ")}</div>` : ""}
       <div class="kv">
         <div><span class="dim">Rating</span><b>${d.elo}</b> ${rankBadge(d.elo)}</div>
         <div><span class="dim">Games</span><b>${d.games}</b> <span class="dim">${d.wins}W ${d.losses}L ${d.draws}D</span></div>
@@ -775,10 +838,12 @@
       <p>${d.friends.map((f) => `<a href="#" data-admin-open="${esc(f.name)}">${esc(f.name)}</a>`).join(", ") || `<span class="dim">None</span>`}
         ${d.requests.length ? `<br><span class="dim">Pending requests from: ${d.requests.map(esc).join(", ")}</span>` : ""}</p>
       <h3>Recent games</h3>
-      <div class="scroll"><table><thead><tr><th>When</th><th>Opponent</th><th>Result</th><th class="num">Change</th></tr></thead><tbody>
+      <div class="scroll"><table><thead><tr><th>When</th><th>Opponent</th><th>Result</th><th class="num">AI: engine match</th><th class="num">Change</th></tr></thead><tbody>
         ${d.history.map((h) => `<tr><td>${when(h.at)}</td><td><a href="#" data-admin-open="${esc(h.opp)}">${esc(h.opp)}</a></td>
-          <td>${h.result === null ? "Aborted" : word[h.result]} <span class="dim">· ${esc(h.reason)}</span></td><td class="num">${fmt(h.change || 0)}</td></tr>`).join("")
-          || `<tr><td colspan="4" class="empty">No games yet.</td></tr>`}
+          <td>${h.result === null ? "Aborted" : word[h.result]} <span class="dim">· ${esc(h.reason)}</span></td>
+          <td class="num">${h.ai ? `<span class="${h.ai.match >= 0.65 ? "down" : ""}">${Math.round(h.ai.match * 100)}%</span> <span class="dim">${h.ai.accuracy}% acc</span>` : `<span class="dim">—</span>`}</td>
+          <td class="num">${fmt(h.change || 0)}</td></tr>`).join("")
+          || `<tr><td colspan="5" class="empty">No games yet.</td></tr>`}
       </tbody></table></div>
       <h3>Chat messages</h3>
       <div class="chat" style="height: auto; max-height: 200px">${d.chatLog.map((c) => `<p><span class="dim">${when(c.at)} → ${esc(c.to)}:</span> ${esc(c.text)}</p>`).join("") || `<p class="dim">No messages.</p>`}</div>

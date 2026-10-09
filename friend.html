@@ -136,6 +136,7 @@
 <script src="pwa.js"></script>
 <script src="vendor/chess.min.js"></script>
 <script src="elo.js"></script>
+<script src="names.js"></script>
 <script src="board.js"></script>
 <script src="vendor/qrcode.min.js"></script>
 <script src="vendor/peerjs.min.js"></script>
@@ -196,7 +197,8 @@
 
   function lockName(raw) {
     const name = String(raw || "").trim();
-    if (!NAME_RULE.test(name)) throw new Error("Names are 2–20 letters, numbers, spaces, _ or -");
+    const rule = EloNames.checkName(name);
+    if (!rule.ok) throw new Error(rule.reason);
     if (!canChangeName()) throw new Error(`You can change your name again on ${longDate(nextChangeAt())}.`);
     if (nameLocked()) profile.nameChangedAt = Date.now();
     else profile.nameSetAt = Date.now();

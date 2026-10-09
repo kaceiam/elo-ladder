@@ -130,6 +130,9 @@
     }
   }
 
+  // Inside the App Store app the files are built in; updates come through the App Store
+  if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) return;
+
   setInterval(check, POLL_MS);
   setInterval(renderBar, 250);
   // Phones pause background tabs; check again as soon as the app is opened

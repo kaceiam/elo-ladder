@@ -30,10 +30,10 @@ const BOTS = [
 
 // ---------- Stockfish ----------
 
-// Served over http (Live Server) it loads the local copy. Opened as a file,
-// browsers block local workers, so it loads the same build from a CDN.
+// Served over http (or inside the iPhone app) it loads the local copy. Opened
+// as a file, browsers block local workers, so it loads the same build from a CDN.
 function makeWorker() {
-  if (location.protocol.startsWith("http")) {
+  if (location.protocol.startsWith("http") || location.protocol === "capacitor:") {
     return new Worker(new URL(`vendor/stockfish/${SF_FILE}.js`, location.href));
   }
   const base = `https://unpkg.com/stockfish@${SF_VERSION}/bin/${SF_FILE}`;

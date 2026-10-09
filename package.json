@@ -2,13 +2,21 @@
   "name": "elo-ladder",
   "version": "1.0.0",
   "private": true,
-  "description": "Chess with Elo ratings: Stockfish bots and online multiplayer",
+  "description": "Chess with Elo ratings: Stockfish bots, training, ranked play and online multiplayer",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "build:web": "node tools/build-www.js",
+    "ios:sync": "npm run build:web && npx cap sync ios"
   },
   "engines": {
     "node": ">=18"
   },
-  "license": "GPL-3.0"
+  "license": "GPL-3.0",
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.5.3",
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/ios": "^8.5.3"
+  }
 }

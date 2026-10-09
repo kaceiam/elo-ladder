@@ -1,0 +1,94 @@
+# Builds the Elo Ladder iPhone app on a GitHub-hosted Mac.
+#
+# Every run compiles the app for the iPhone simulator (proves it builds).
+# Once these repository secrets exist, it also signs the app and uploads it
+# to App Store Connect (TestFlight, then App Store review):
+#   APPLE_TEAM_ID           10-character Team ID from developer.apple.com
+#   APPSTORE_KEY_ID         App Store Connect API key ID
+#   APPSTORE_ISSUER_ID      App Store Connect API issuer ID
+#   APPSTORE_P8_BASE64      the downloaded AuthKey_XXXX.p8, base64-encoded
+#
+# Run it from the Actions tab ("Run workflow"), or push a tag like ios-v1.
+
+name: iOS app
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["ios-v*"]
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      HAS_SIGNING: ${{ secrets.APPSTORE_KEY_ID != '' && secrets.APPSTORE_P8_BASE64 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Capacitor
+        run: npm ci
+
+      - name: Prepare the web app
+        run: npm run build:web
+
+      - name: Create the iOS project
+        run: npx cap add ios --packagemanager SPM
+
+      - name: App icons and launch screens
+        run: npx capacitor-assets generate --ios --iconBackgroundColor '#14161b' --splashBackgroundColor '#0b0d18' --splashBackgroundColorDark '#0b0d18'
+
+      - name: Copy the web app into the iOS project
+        run: npx cap sync ios
+
+      - name: App settings (name, portrait on iPhone, no export paperwork)
+        run: |
+          PLIST=ios/App/App/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName Elo Ladder" "$PLIST" || /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string Elo Ladder" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" "$PLIST" || true
+          /usr/libexec/PlistBuddy -c "Delete :UISupportedInterfaceOrientations" "$PLIST" || true
+          /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations array" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :UISupportedInterfaceOrientations:0 string UIInterfaceOrientationPortrait" "$PLIST"
+          echo "APP_VERSION=1.$(node -p "require('./version.json').version").0" >> "$GITHUB_ENV"
+
+      - name: Build for the simulator
+        run: |
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            TARGETED_DEVICE_FAMILY=1 CODE_SIGNING_ALLOWED=NO build | tail -n 25
+
+      - name: Sign and upload to App Store Connect
+        if: env.HAS_SIGNING == 'true'
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+          APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+          APPSTORE_P8_BASE64: ${{ secrets.APPSTORE_P8_BASE64 }}
+        run: |
+          KEY="$RUNNER_TEMP/AuthKey_$APPSTORE_KEY_ID.p8"
+          echo "$APPSTORE_P8_BASE64" | base64 --decode > "$KEY"
+          AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$KEY" -authenticationKeyID "$APPSTORE_KEY_ID" -authenticationKeyIssuerID "$APPSTORE_ISSUER_ID")
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/App.xcarchive" archive \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CODE_SIGN_STYLE=Automatic TARGETED_DEVICE_FAMILY=1 \
+            MARKETING_VERSION="$APP_VERSION" CURRENT_PROJECT_VERSION="${{ github.run_number }}" "${AUTH[@]}" | tail -n 25
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$APPLE_TEAM_ID</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict></plist>
+          EOF
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/export" "${AUTH[@]}"
+          rm -f "$KEY"
+          echo "Uploaded Elo Ladder $APP_VERSION (build ${{ github.run_number }}) to App Store Connect."

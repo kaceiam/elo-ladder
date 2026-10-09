@@ -1,0 +1,11 @@
+{
+  "appId": "io.github.kaceiam.eloladder",
+  "appName": "Elo Ladder",
+  "webDir": "www",
+  "backgroundColor": "#0b0d18",
+  "ios": {
+    "contentInset": "automatic",
+    "backgroundColor": "#0b0d18",
+    "scheme": "Elo Ladder"
+  }
+}

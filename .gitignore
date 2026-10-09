@@ -1,2 +1,7 @@
 # Player ratings and login tokens written by server.js
 data/
+
+# iPhone app build output (made by tools/build-www.js and Capacitor)
+node_modules/
+www/
+ios/

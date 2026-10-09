@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Elo Test – Find Your Real Chess Rating – Elo Ladder</title>
+<meta name="description" content="Play four quick games against a bot that adapts to you and find out your real chess rating. Replay every game move by move.">
+<link rel="canonical" href="https://kaceiam.github.io/elo-ladder/elotest.html">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0b0d18">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="app.css">
+</head>
+<body class="app">
+<main>
+  <section class="test-hero glass">
+    <div class="test-ico">🧪</div>
+    <div>
+      <div class="dim small">FIND YOUR REAL RATING</div>
+      <h1 class="test-title">Elo Test</h1>
+      <p class="dim" style="margin: 0 0 12px">Four quick games (3 min + 2 sec) against a bot that adapts to you. Win and the next bot is stronger, lose and it's weaker — each game narrows down your rating. Afterwards, replay every game.</p>
+      <div class="test-steps" id="steps"></div>
+      <div class="row" style="margin-top: 14px" id="startRow">
+        <button class="cta-btn" id="startTest">🧪 Start the Elo Test</button>
+        <span class="dim small" id="startNote"></span>
+      </div>
+    </div>
+  </section>
+
+  <section id="matchArea" hidden></section>
+  <section id="resultCard" class="result-card glass" hidden></section>
+
+  <section id="gamesBox" hidden>
+    <h2>This test's games</h2>
+    <div class="list" id="games"></div>
+  </section>
+
+  <section>
+    <h2>Past tests</h2>
+    <div class="list" id="past"></div>
+  </section>
+</main>
+
+<script src="pwa.js"></script>
+<script src="update.js"></script>
+<script src="vendor/chess.min.js"></script>
+<script src="elo.js"></script>
+<script src="names.js"></script>
+<script src="board.js"></script>
+<script src="bots.js"></script>
+<script src="match.js"></script>
+<script src="nav.js"></script>
+<script>
+  const KEY = "elo-test";
+  const STEPS = [300, 200, 100, 50]; // how far the estimate moves after each game
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+  let T = { runs: [], current: null };
+  try { T = { ...T, ...JSON.parse(localStorage.getItem(KEY)) }; } catch {}
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(T)); } catch {} };
+
+  const botsState = () => { try { return JSON.parse(localStorage.getItem("elo-ladder-v1")) || {}; } catch { return {}; } };
+  const startEstimate = () => Math.round(Math.max(400, Math.min(2600, (botsState().me || {}).elo || 1000)));
+
+  // A test game you walked out of counts as a loss
+  if (T.current && T.current.pending) {
+    const c = T.current;
+    c.games.push({ oppElo: c.pending.oppElo, opp: c.pending.opp, score: 0, reason: "left the game", sans: [], color: c.pending.color });
+    c.estimate = Math.max(100, c.estimate - STEPS[c.games.length - 1]);
+    (c.path || (c.path = [c.start])).push(Math.round(c.estimate));
+    c.pending = null;
+    if (c.games.length >= STEPS.length) { c.result = Math.round(c.estimate); T.runs.push(c); T.current = null; }
+    save();
+  }
+
+  function renderSteps() {
+    const c = T.current;
+    $("steps").innerHTML = STEPS.map((_, i) => {
+      const g = c && c.games[i];
+      const cls = g ? (g.score === 1 ? "w" : g.score === 0 ? "l" : "d") : c && i === c.games.length ? "now" : "";
+      return `<div class="tstep ${cls}"><b>Game ${i + 1}</b><span>${g ? `${g.score === 1 ? "Won" : g.score === 0 ? "Lost" : "Draw"} vs ${g.oppElo}` : c && i === c.games.length ? "Up next" : "—"}</span></div>`;
+    }).join("");
+  }
+
+  function gameRow(g, i, run) {
+    return `<div class="seek"><div><b>Game ${i + 1}</b> · ${g.score === 1 ? `<span class="up">Won</span>` : g.score === 0 ? `<span class="down">Lost</span>` : "Draw"}
+      vs ${esc(g.opp || "Bot")} 🤖 (${g.oppElo}) <span class="dim">· ${esc(g.reason)} · ${g.sans.length} moves</span></div>
+      ${g.sans.length ? `<button type="button" data-replay="${run}:${i}">▶ Replay</button>` : ""}</div>`;
+  }
+
+  function render() {
+    renderSteps();
+    const c = T.current;
+    $("startTest").textContent = c ? `▶ Play game ${c.games.length + 1} of ${STEPS.length}` : "🧪 Start the Elo Test";
+    $("startNote").textContent = c ? `Current estimate: ${Math.round(c.estimate)}` : `Starts around ${startEstimate()} (your bot rating).`;
+    $("gamesBox").hidden = !(c && c.games.length);
+    $("games").innerHTML = c ? c.games.map((g, i) => gameRow(g, i, "current")).join("") : "";
+    $("past").innerHTML = T.runs.length ? T.runs.slice().reverse().map((r, ri) => {
+      const idx = T.runs.length - 1 - ri;
+      return `<details class="past-run"><summary><b>${Math.round(r.result)}</b> Elo <span class="dim">· ${new Date(r.at).toLocaleDateString()} · ${r.games.filter((g) => g.score === 1).length}W ${r.games.filter((g) => g.score === 0).length}L ${r.games.filter((g) => g.score === 0.5).length}D</span></summary>
+        <div class="list" style="margin-top: 8px">${r.games.map((g, i) => gameRow(g, i, idx)).join("")}</div></details>`;
+    }).join("") : `<p class="dim">No tests yet.</p>`;
+  }
+
+  $("startTest").addEventListener("click", () => {
+    if (!T.current) T.current = { at: Date.now(), start: startEstimate(), estimate: startEstimate(), games: [], pending: null, path: [startEstimate()] };
+    const c = T.current;
+    const oppElo = Math.round(Math.max(200, Math.min(3000, c.estimate)));
+    const opp = opponentName(Date.now());
+    const color = c.games.length % 2 ? "b" : "w";
+    c.pending = { oppElo, opp, color };
+    save();
+    $("resultCard").hidden = true;
+    $("startRow").hidden = true;
+    $("matchArea").hidden = false;
+    $("matchArea").scrollIntoView({ behavior: "smooth" });
+    startMatch($("matchArea"), {
+      me: { name: myDisplayName(), elo: Math.round(c.estimate) }, opp: { name: `${opp} 🤖`, elo: oppElo }, color,
+      clock: { base: 3 * 60_000, inc: 2000 }, label: `🧪 Elo Test · Game ${c.games.length + 1} of ${STEPS.length} · bot rated ${oppElo}`,
+      onEnd: ({ score, reason, history }) => {
+        const step = STEPS[c.games.length];
+        c.games.push({ oppElo, opp, score, reason, sans: history, color });
+        c.estimate = Math.max(100, c.estimate + step * (score * 2 - 1));
+        c.path.push(Math.round(c.estimate));
+        c.pending = null;
+        if (c.games.length >= STEPS.length) {
+          c.result = Math.round(c.estimate);
+          T.runs.push(c);
+          T.current = null;
+          save();
+          showResult(c);
+        } else save();
+        $("startRow").hidden = false;
+        render();
+        checkUnlocks();
+        refreshNav();
+      },
+    });
+  });
+
+  function showResult(r) {
+    const b = botsState();
+    const cur = Math.round((b.me || {}).elo || 1200);
+    const lo = Math.min(...r.path) - 50, hi = Math.max(...r.path) + 50;
+    const pts = r.path.map((v, i) => `${10 + i * (280 / (r.path.length - 1))},${10 + (1 - (v - lo) / (hi - lo)) * 80}`).join(" ");
+    $("resultCard").innerHTML = `
+      <div class="dim small">YOUR ESTIMATED RATING</div>
+      <div class="result-big win">${r.result}</div>
+      <span class="rank ${rankOf(r.result)}">${rankOf(r.result)}</span>
+      <svg viewBox="0 0 300 100" class="spark" aria-label="How your estimate moved">
+        <polyline points="${pts}" fill="none" stroke="url(#sg)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+        ${r.path.map((v, i) => `<circle cx="${10 + i * (280 / (r.path.length - 1))}" cy="${10 + (1 - (v - lo) / (hi - lo)) * 80}" r="4" fill="#fff"/>`).join("")}
+        <defs><linearGradient id="sg"><stop offset="0" stop-color="#7b5cff"/><stop offset="1" stop-color="#ff5cb1"/></linearGradient></defs>
+      </svg>
+      <div class="dim">${r.path.join(" → ")}</div>
+      <div class="dim">Your bot rating is <b>${cur}</b>.</div>
+      <div class="row" style="justify-content: center">
+        <button class="cta-btn" id="applyBots">📈 Set my bot rating to ${r.result}</button>
+        <button type="button" id="applyFriend">Also set my friend-game rating</button>
+      </div>`;
+    $("resultCard").hidden = false;
+    $("resultCard").scrollIntoView({ behavior: "smooth" });
+    $("applyBots").onclick = () => {
+      const s = botsState();
+      s.me = { ...(s.me || { games: 0 }), elo: r.result };
+      localStorage.setItem("elo-ladder-v1", JSON.stringify(s));
+      $("applyBots").textContent = `✓ Bot rating set to ${r.result}`;
+      $("applyBots").disabled = true;
+      refreshNav();
+    };
+    $("applyFriend").onclick = () => {
+      let p = {};
+      try { p = JSON.parse(localStorage.getItem("elo-friend-profile")) || {}; } catch {}
+      p.elo = r.result;
+      localStorage.setItem("elo-friend-profile", JSON.stringify(p));
+      $("applyFriend").textContent = `✓ Friend rating set to ${r.result}`;
+      $("applyFriend").disabled = true;
+    };
+  }
+
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-replay]");
+    if (!b) return;
+    const [run, i] = b.dataset.replay.split(":");
+    const r = run === "current" ? T.current : T.runs[+run];
+    const g = r.games[+i];
+    showReplay(g.sans, { title: `Elo Test · Game ${+i + 1}`, orientation: g.color, subtitle: `You (${g.color === "w" ? "White" : "Black"}) vs ${esc(g.opp || "Bot")} 🤖 (${g.oppElo}) — ${g.score === 1 ? "you won" : g.score === 0 ? "you lost" : "draw"} by ${esc(g.reason)}` });
+  });
+
+  window.updateBusy = () => !!(T.current && T.current.pending);
+  render();
+</script>
+</body>
+</html>

@@ -337,6 +337,8 @@
   for (const r of document.querySelectorAll(".names-row")) r.innerHTML = squareNamesButton();
   document.addEventListener("squarenames", () => { if (game) renderBoard(); });
 
+  // The menu's ELO panel can change your rating too
+  document.addEventListener("ratingchange", () => { try { state.me = JSON.parse(localStorage.getItem(KEY)).me; } catch {} renderMe(); });
   $("setRating").addEventListener("click", () => showRatingPicker(state.me.elo, (elo) => { state.me.elo = elo; save(); renderMe(); }));
 
   $("start").addEventListener("click", startGame);

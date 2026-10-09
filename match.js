@@ -113,7 +113,7 @@ function startMatch(root, opts) {
     draw();
     const word = score === 1 ? "You won" : score === 0 ? "You lost" : "Draw";
     $q(".status").innerHTML = `<span class="${score === 1 ? "up" : score === 0 ? "down" : ""}">${word}</span> by ${esc(reason)}.`;
-    opts.onEnd && opts.onEnd({ score, reason, color: myColor, moves: game.history().length });
+    opts.onEnd && opts.onEnd({ score, reason, color: myColor, moves: game.history().length, history: game.history() });
   }
 
   async function botTurn() {

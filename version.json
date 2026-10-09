@@ -1,14 +1,12 @@
 {
-  "version": 6,
-  "title": "New menu, ranked matches, Sunday tournaments and unlockable boards",
+  "version": 7,
+  "title": "ELO button, Elo Test with replays, and admin Elo control",
   "notes": [
-    "A brand-new menu on every page — Play Bots, Ranked, Tournament, Online Play and Training — with an app-style tab bar on phones.",
-    "Tap your profile (top right) to change your name and see your wins, ratings, boards and trophies.",
-    "⚔️ Ranked: 5 placement games, then climb Bronze → Silver → Gold → Platinum → Diamond → Master → Grandmaster with real clocks.",
-    "🏆 Sunday Cup: a 5-round, 32-player tournament every Sunday with live standings and trophies.",
-    "🎨 Unlock new boards by winning games — including the new Galaxy board and the Champion gold board for Sunday Cup winners."
+    "📈 New ELO button at the top of every page: see all your ratings and change them in one place.",
+    "🧪 Elo Test: four quick games against a bot that adapts to you — win and it gets stronger, lose and it gets easier — to find your real rating, then apply it with one tap.",
+    "▶ Replay your Elo Test games move by move, with play, pause and step buttons.",
+    "Admins can now set any player's online rating."
   ],
   "countdown": 60,
-  "date": "2026-10-09",
-  "upcoming": { "version": 7, "title": "ELO button, Elo Test with replays, and admin Elo control", "eta": "2026-10-09T21:36:57Z" }
+  "date": "2026-10-09"
 }

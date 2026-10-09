@@ -229,6 +229,64 @@ function showThemePicker() {
   document.body.append(box);
 }
 
+// Watch a finished game again, move by move. sans: ["e4", "e5", …]
+function showReplay(sans, { title = "Replay", orientation = "w", subtitle = "" } = {}) {
+  const game = new Chess();
+  let ply = 0, timer = null;
+  const box = document.createElement("div");
+  box.className = "update-modal";
+  box.innerHTML = `
+    <div class="update-card replay-card" role="dialog" aria-label="Game replay">
+      <div class="row" style="justify-content: space-between"><h2 style="margin: 0">▶ ${title}</h2><button type="button" data-close>✕</button></div>
+      ${subtitle ? `<div class="dim small" style="margin: 4px 0 8px">${subtitle}</div>` : ""}
+      <div class="board replay-board"></div>
+      <div class="replay-move"></div>
+      <div class="row replay-controls">
+        <button type="button" data-rp="start" title="Start">⏮</button>
+        <button type="button" data-rp="back" title="Back">◀</button>
+        <button type="button" class="primary" data-rp="play" title="Play">⏯ Play</button>
+        <button type="button" data-rp="fwd" title="Forward">▶</button>
+        <button type="button" data-rp="end" title="End">⏭</button>
+      </div>
+      <div class="moves replay-moves"></div>
+    </div>`;
+  const draw = () => {
+    box.querySelector(".replay-board").innerHTML = boardHtml(game, orientation, null);
+    const h = game.history();
+    box.querySelector(".replay-move").textContent = ply ? `Move ${Math.ceil(ply / 2)}${ply % 2 ? "" : "…"} ${h[h.length - 1]}  (${ply}/${sans.length})` : `Start position (0/${sans.length})`;
+    box.querySelector(".replay-moves").innerHTML = sans.map((s, i) => `${i % 2 === 0 ? `<span class="dim">${i / 2 + 1}.</span>` : ""}<span class="mv ${i === ply - 1 ? "cur" : ""}" data-goto="${i + 1}">${s}</span>`).join("");
+    box.querySelector('[data-rp="play"]').textContent = timer ? "⏸ Pause" : "⏯ Play";
+  };
+  const goTo = (n) => {
+    n = Math.max(0, Math.min(sans.length, n));
+    game.reset();
+    for (let i = 0; i < n; i++) game.move(sans[i]);
+    ply = n;
+    draw();
+  };
+  const stop = () => { clearInterval(timer); timer = null; };
+  box.addEventListener("click", (e) => {
+    if (e.target === box || e.target.closest("[data-close]")) { stop(); return box.remove(); }
+    const g = e.target.closest("[data-goto]");
+    if (g) { stop(); return goTo(+g.dataset.goto); }
+    const b = e.target.closest("[data-rp]");
+    if (!b) return;
+    const act = b.dataset.rp;
+    if (act === "play") {
+      if (timer) stop();
+      else {
+        if (ply >= sans.length) goTo(0);
+        timer = setInterval(() => { if (ply >= sans.length) { stop(); draw(); } else goTo(ply + 1); }, 900);
+      }
+      return draw();
+    }
+    stop();
+    goTo(act === "start" ? 0 : act === "back" ? ply - 1 : act === "fwd" ? ply + 1 : sans.length);
+  });
+  document.body.append(box);
+  goTo(0);
+}
+
 // "Set your rating" box (bot and friend ratings live in your own browser)
 function showRatingPicker(current, onPick) {
   const presets = [[600, "Just starting"], [1000, "Casual player"], [1400, "Club player"], [1800, "Strong player"], [2200, "Expert"]];

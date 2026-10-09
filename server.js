@@ -938,6 +938,23 @@ const actions = {
     return { ok: true };
   },
 
+  // Set a player's rating directly (e.g. someone sandbagging or boosted)
+  adminSetElo(body, me) {
+    const p = adminTarget(body, me, { notAdmin: false });
+    const elo = Math.round(+body.elo);
+    if (!(elo >= 100 && elo <= 3300)) fail(400, "Pick a rating between 100 and 3300");
+    const reason = String(body.reason || "").trim().slice(0, 200);
+    const from = Math.round(p.elo);
+    p.elo = elo;
+    logSanction(p, "set elo", me, { reason, from: String(from), to: String(elo) });
+    savePlayers();
+    send(p.name, { type: "me", me: meView(p) });
+    if (p.name !== me) send(p.name, { type: "notice", text: `An admin changed your rating from ${from} to ${elo}.${reason ? ` Reason: ${reason}` : ""}` });
+    pushLobby();
+    pushFriends(p.name);
+    return { ok: true, elo };
+  },
+
   adminRename(body, me) {
     const p = adminTarget(body, me, { notAdmin: false });
     const name = String(body.newName || "").trim();

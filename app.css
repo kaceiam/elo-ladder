@@ -356,3 +356,41 @@ body.app { background: radial-gradient(1000px 600px at 10% -10%, #24205a 0%, tra
 .cab-item.top { border-color: rgba(255, 207, 64, .5); box-shadow: 0 0 24px rgba(255, 207, 64, .2); }
 .cab-medal { font-size: 40px; }
 @media (max-width: 600px) { .cup-hero { grid-template-columns: 1fr; text-align: center; justify-items: center; } .cup-state { justify-items: center; } .countdown span { min-width: 56px; } .countdown b { font-size: 22px; } .hide-sm { display: none; } }
+/* ---------- Update 7: ELO button, Elo Test, replays ---------- */
+.nav-elo { padding: 8px 14px; border-radius: 99px; font-weight: 800; letter-spacing: .03em; color: #fff; border: none;
+  background: linear-gradient(135deg, #18c48f, #0ea5e9); box-shadow: 0 6px 18px rgba(14, 165, 233, .4); white-space: nowrap; }
+.nav-elo:hover { filter: brightness(1.1); }
+@media (max-width: 860px) { .topnav { gap: 8px; } .nav-elo { margin-left: auto; padding: 7px 11px; } }
+.elo-panel { max-width: 560px; max-height: 92vh; overflow-y: auto; }
+.elo-test-btn { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 14px 16px; border-radius: 14px; text-decoration: none; color: #fff;
+  background: linear-gradient(135deg, rgba(123, 92, 255, .5), rgba(255, 92, 177, .35)); border: 1px solid rgba(255, 255, 255, .18); margin-bottom: 12px; }
+.elo-test-btn > span:first-child { font-size: 30px; }
+.elo-test-btn:hover { filter: brightness(1.15); }
+.elo-cards { display: grid; gap: 8px; }
+.elo-card { display: grid; grid-template-columns: 44px 1fr auto; gap: 12px; align-items: center; padding: 12px; border-radius: 12px; background: rgba(255, 255, 255, .05); }
+.elo-ico { font: 26px/1 "Segoe UI Symbol", "Segoe UI Emoji", serif; text-align: center; }
+.elo-num { font-size: 26px; font-weight: 900; }
+.test-hero { display: grid; grid-template-columns: auto 1fr; gap: 24px; align-items: center; padding: 26px;
+  background: linear-gradient(135deg, rgba(24, 196, 143, .16), rgba(255, 255, 255, .04)); }
+.test-ico { font-size: 84px; filter: drop-shadow(0 10px 26px rgba(24, 196, 143, .6)); animation: bob2 4s ease-in-out infinite; }
+.test-title { font-size: clamp(36px, 6vw, 56px); margin: 2px 0 6px; font-weight: 900;
+  background: linear-gradient(90deg, #b6ffe4, #18c48f, #0ea5e9); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.test-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.tstep { display: grid; gap: 2px; padding: 10px; border-radius: 12px; background: rgba(0, 0, 0, .25); border: 1px solid rgba(255, 255, 255, .08); font-size: 13px; }
+.tstep span { color: var(--dim); }
+.tstep.now { border-color: #18c48f; box-shadow: 0 0 18px rgba(24, 196, 143, .35); }
+.tstep.w { border-color: #2d8a5f; background: rgba(45, 138, 95, .25); }
+.tstep.l { border-color: #8a2d3b; background: rgba(138, 45, 59, .25); }
+.tstep.d { border-color: #555a6e; }
+.spark { width: min(100%, 340px); height: 110px; }
+.past-run { padding: 10px 12px; border-radius: 12px; background: rgba(255, 255, 255, .04); }
+.past-run summary { cursor: pointer; }
+.replay-card { max-width: 520px; width: 100%; max-height: 95vh; overflow-y: auto; }
+.replay-board { margin: 12px auto; width: min(100%, 420px); }
+.replay-board .sq { font-size: clamp(24px, 6vw, 44px); cursor: default; }
+.replay-move { text-align: center; font-weight: 700; font-family: ui-monospace, Consolas, monospace; margin: 4px 0 8px; }
+.replay-controls { justify-content: center; }
+.replay-controls button { min-width: 48px; font-size: 18px; }
+.replay-moves { margin-top: 10px; max-height: 120px; }
+.mv.cur { background: var(--accent); color: #0b0d12; border-radius: 4px; padding: 0 3px; text-decoration: none; }
+@media (max-width: 600px) { .test-hero { grid-template-columns: 1fr; text-align: center; justify-items: center; } .test-steps { grid-template-columns: repeat(2, 1fr); } }

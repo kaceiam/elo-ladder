@@ -364,6 +364,7 @@
 
   // The menu's Change name renames your online account
   window.onlineRename = async (name) => { if (me) await api("rename", { name }); };
+  window.onlineMe = () => (me ? { elo: me.elo, name: me.name } : null);
 
   // Keep this device's saved login pointing at the current name after a rename
   function rememberName(name) {
@@ -822,7 +823,7 @@
       <div class="row" style="justify-content: space-between">
         <div><span class="dot ${d.status === "online" ? "on" : d.status === "playing" ? "busy" : ""}"></span>
           <b style="font-size: 20px">${esc(d.name)}</b> <span class="dim">${STATUS_LABEL[d.status]}</span></div>
-        <button data-adm="rename">✏️ Change name</button>
+        <div class="row"><button data-adm="setelo">📈 Set Elo</button><button data-adm="rename">✏️ Change name</button></div>
       </div>
       <p>${status}</p>
       ${actions}
@@ -882,6 +883,14 @@
         await api("adminRestrict", { name, minutes: +minutes, reason });
       } else if (kind === "unrestrict") {
         await api("adminUnrestrict", { name });
+      } else if (kind === "setelo") {
+        const cur = $("adminDetail").querySelector(".kv b")?.textContent || "";
+        const v = prompt(`New rating for ${name} (100–3300). Current: ${cur}`, cur);
+        if (v === null || !v.trim()) return;
+        const elo = Math.round(+v);
+        if (!(elo >= 100 && elo <= 3300)) return alert("Pick a number between 100 and 3300.");
+        if (!confirm(`Set ${name}'s rating to ${elo}?${reason ? ` Reason: ${reason}` : ""}`)) return;
+        await api("adminSetElo", { name, elo, reason });
       } else if (kind === "rename") {
         const newName = prompt(`New name for ${name}:`, name);
         if (!newName || newName.trim() === name) return;

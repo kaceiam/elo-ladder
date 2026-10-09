@@ -81,6 +81,7 @@ function navHtml() {
     <nav class="topnav" aria-label="Main menu">
       <a class="nav-brand" href="index.html"><img src="icons/icon-192.png" alt=""><span>Elo Ladder</span></a>
       <div class="nav-tabs">${NAV_PAGES.map((p) => tab(p, "nav-tab")).join("")}</div>
+      <button type="button" class="nav-elo" data-elo-panel title="Your ratings">📈 ELO</button>
       <button type="button" class="nav-profile" data-profile></button>
     </nav>
     <nav class="tabbar" aria-label="Main menu">${NAV_PAGES.map((p) => tab(p, "tab-item")).join("")}</nav>`;
@@ -165,6 +166,62 @@ function showProfile() {
   document.body.append(box);
 }
 
+// ---------- the ELO panel: all your ratings in one place ----------
+
+function showEloPanel() {
+  const read = (k) => { try { return JSON.parse(localStorage.getItem(k)) || {}; } catch { return {}; } };
+  const bots = read("elo-ladder-v1"), friend = read(NAV_PROFILE_KEY), ranked = read("elo-ranked"), test = read("elo-test");
+  const botElo = Math.round((bots.me || {}).elo || 1200), friendElo = Math.round(friend.elo || 1200);
+  const rank = rankedInfo();
+  const lastTest = (test.runs || []).slice(-1)[0];
+  const online = typeof window.onlineMe === "function" ? window.onlineMe() : null;
+  const card = (icon, title, elo, sub, action) => `
+    <div class="elo-card"><span class="elo-ico">${icon}</span>
+      <div><div class="dim small">${title}</div><div class="elo-num">${elo}</div><div class="dim small">${sub}</div></div>${action}</div>`;
+  const box = document.createElement("div");
+  box.className = "update-modal";
+  const render = () => {
+    const b = read("elo-ladder-v1"), f = read(NAV_PROFILE_KEY);
+    const be = Math.round((b.me || {}).elo || 1200), fe = Math.round(f.elo || 1200);
+    box.innerHTML = `
+      <div class="update-card elo-panel" role="dialog" aria-label="Your ratings">
+        <div class="row" style="justify-content: space-between"><h2 style="margin: 0">📈 Your ELO</h2><button type="button" data-close>✕</button></div>
+        <p class="dim" style="margin: 4px 0 12px">Every mode keeps its own rating. Not sure what yours should be? Take the Elo Test.</p>
+        <a class="elo-test-btn" href="elotest.html"><span>🧪</span><span><b>Take the Elo Test</b><br><small>4 quick games against a bot that adapts to you${lastTest ? ` · last result: <b>${lastTest.result}</b>` : ""}</small></span><span>→</span></a>
+        <div class="elo-cards">
+          ${card("♚", "Bot games", be, `${rankOf(be)} · ${(b.games || []).length} games`, `<button type="button" data-set="bots">✏️ Change</button>`)}
+          ${card("🌐", "Friend games", fe, `${rankOf(fe)} · ${(f.history || []).length} games`, `<button type="button" data-set="friend">✏️ Change</button>`)}
+          ${card("⚔️", "Ranked", rank && rank.placed ? rank.elo : "—", rank ? `<span style="color: ${rank.color}">${rank.label}</span> · earned by playing` : "Play 5 placement games", `<a class="btn" href="ranked.html">Play ranked</a>`)}
+          ${online ? card("🏟", "Online lobby", online.elo, "Only an admin can change this one", "") : ""}
+        </div>
+      </div>`;
+  };
+  render();
+  box.addEventListener("click", (e) => {
+    if (e.target === box || e.target.closest("[data-close]")) return box.remove();
+    const s = e.target.closest("[data-set]");
+    if (!s) return;
+    if (s.dataset.set === "bots") {
+      const b = read("elo-ladder-v1");
+      showRatingPicker((b.me || {}).elo || 1200, (elo) => {
+        b.me = { ...(b.me || { games: 0 }), elo };
+        try { localStorage.setItem("elo-ladder-v1", JSON.stringify(b)); } catch {}
+        render();
+        document.dispatchEvent(new Event("ratingchange"));
+      });
+    } else {
+      const f = read(NAV_PROFILE_KEY);
+      showRatingPicker(f.elo || 1200, (elo) => {
+        f.elo = elo;
+        writeProfile(f);
+        render();
+        document.dispatchEvent(new Event("profilechange"));
+      });
+    }
+  });
+  document.body.append(box);
+}
+
 // ---------- start ----------
 
 (function () {
@@ -172,7 +229,10 @@ function showProfile() {
   document.body.classList.add("has-nav");
   document.body.insertAdjacentHTML("afterbegin", navHtml());
   refreshNav();
-  document.addEventListener("click", (e) => { if (e.target.closest("[data-profile]")) showProfile(); });
+  document.addEventListener("click", (e) => {
+    if (e.target.closest("[data-profile]")) showProfile();
+    if (e.target.closest("[data-elo-panel]")) showEloPanel();
+  });
   // Keep the Sunday Cup badge fresh
   setInterval(() => {
     const cup = cupStatus();

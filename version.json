@@ -1,13 +1,13 @@
 {
-  "version": 5,
-  "title": "Cooler board, rating changer and a brand-new home screen",
+  "version": 6,
+  "title": "New menu, ranked matches, Sunday tournaments and unlockable boards",
   "notes": [
-    "ðŸŽ¨ Board styles: pick from 8 looks â€” Classic wood, Tournament green, Ocean, Midnight, Marble, Candy, Sunset and glowing Neon. Tap \"Board style\" under any board.",
-    "The board got a 3D frame, bigger pieces with shadows, and moves now slide smoothly across the board.",
-    "âœï¸ Change my rating: set your rating for bot and friend games â€” pick a level or type an exact number.",
-    "A brand-new home screen with a live board replaying famous games like Morphy's Opera Game."
+    "A brand-new menu on every page — Play Bots, Ranked, Tournament, Online Play and Training — with an app-style tab bar on phones.",
+    "Tap your profile (top right) to change your name and see your wins, ratings, boards and trophies.",
+    "⚔️ Ranked: 5 placement games, then climb Bronze → Silver → Gold → Platinum → Diamond → Master → Grandmaster with real clocks.",
+    "🏆 Sunday Cup: a 5-round, 32-player tournament every Sunday with live standings and trophies.",
+    "🎨 Unlock new boards by winning games — including the new Galaxy board and the Champion gold board for Sunday Cup winners."
   ],
   "countdown": 60,
-  "date": "2026-10-09",
-  "upcoming": { "version": 6, "title": "New menu, ranked matches, Sunday tournaments and unlockable boards", "eta": "2026-10-09T21:51:38Z" }
+  "date": "2026-10-09"
 }

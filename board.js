@@ -17,19 +17,71 @@ function squareNamesOn() {
 
 // ---------- board themes ----------
 
+// wins: games you must win to unlock; trophy: or win a Sunday Cup
 const BOARD_THEMES = {
-  wood: { name: "Classic wood", light: "#f0d9b5", dark: "#b58863", frame: "#6b4423", glow: "rgba(255, 210, 120, .35)" },
-  emerald: { name: "Tournament green", light: "#eeeed2", dark: "#769656", frame: "#3e5c2c", glow: "rgba(190, 230, 120, .35)" },
-  ocean: { name: "Ocean", light: "#e3edf3", dark: "#5f8fb0", frame: "#1f4560", glow: "rgba(120, 200, 255, .4)" },
-  midnight: { name: "Midnight", light: "#b8b6d9", dark: "#5a5891", frame: "#22204a", glow: "rgba(170, 150, 255, .45)" },
-  marble: { name: "Marble", light: "#ececec", dark: "#9c9fa6", frame: "#3c3f45", glow: "rgba(255, 255, 255, .35)" },
-  candy: { name: "Candy", light: "#ffe6f0", dark: "#ee8fb5", frame: "#9c3d68", glow: "rgba(255, 150, 200, .45)" },
-  sunset: { name: "Sunset", light: "#ffe2b8", dark: "#e07a4f", frame: "#7a2e1c", glow: "rgba(255, 160, 90, .45)" },
-  neon: { name: "Neon", light: "#1c2c44", dark: "#0b1424", frame: "#00e5ff", glow: "rgba(0, 229, 255, .6)", neon: true },
+  wood: { name: "Classic wood", light: "#f0d9b5", dark: "#b58863", frame: "#6b4423", glow: "rgba(255, 210, 120, .35)", wins: 0 },
+  emerald: { name: "Tournament green", light: "#eeeed2", dark: "#769656", frame: "#3e5c2c", glow: "rgba(190, 230, 120, .35)", wins: 0 },
+  ocean: { name: "Ocean", light: "#e3edf3", dark: "#5f8fb0", frame: "#1f4560", glow: "rgba(120, 200, 255, .4)", wins: 1 },
+  marble: { name: "Marble", light: "#ececec", dark: "#9c9fa6", frame: "#3c3f45", glow: "rgba(255, 255, 255, .35)", wins: 3 },
+  midnight: { name: "Midnight", light: "#b8b6d9", dark: "#5a5891", frame: "#22204a", glow: "rgba(170, 150, 255, .45)", wins: 5 },
+  sunset: { name: "Sunset", light: "#ffe2b8", dark: "#e07a4f", frame: "#7a2e1c", glow: "rgba(255, 160, 90, .45)", wins: 10 },
+  candy: { name: "Candy", light: "#ffe6f0", dark: "#ee8fb5", frame: "#9c3d68", glow: "rgba(255, 150, 200, .45)", wins: 15 },
+  neon: { name: "Neon", light: "#1c2c44", dark: "#0b1424", frame: "#00e5ff", glow: "rgba(0, 229, 255, .6)", wins: 25, glowPieces: ["#7ff6ff", "#ff4fb3"] },
+  galaxy: { name: "Galaxy", light: "#3d3270", dark: "#191238", frame: "#a98bff", glow: "rgba(169, 139, 255, .7)", wins: 50, glowPieces: ["#ffffff", "#ffcf5c"] },
+  gold: { name: "Champion gold", light: "#fff3c4", dark: "#d4a62a", frame: "#8a6510", glow: "rgba(255, 200, 60, .65)", wins: 100, trophy: true },
 };
 const THEME_KEY = "elo-board-theme";
+
+// ---------- wins, trophies and unlocks (all saved in this browser) ----------
+
+function readJson(key, fallback) {
+  try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
+}
+// Wins from every mode: bots, Play a Friend, Ranked and the Sunday Cup
+function playerStats() {
+  const bots = readJson("elo-ladder-v1", {});
+  const friend = readJson("elo-friend-profile", {});
+  const ranked = readJson("elo-ranked", {});
+  const cup = readJson("elo-sunday-cup", {});
+  const winsIn = (list) => (list || []).filter((g) => g.result === 1).length;
+  const cupGames = Object.values(cup.weeks || {}).flatMap((w) => (w.rounds || []).map((r) => ({ result: r.myScore })));
+  const trophies = Object.values(cup.weeks || {}).filter((w) => w.finished).map((w) => ({ week: w.week, place: w.place, score: w.myPoints }));
+  return {
+    wins: winsIn(bots.games) + winsIn(friend.history) + winsIn(ranked.history) + winsIn(cupGames),
+    botWins: winsIn(bots.games), friendWins: winsIn(friend.history), rankedWins: winsIn(ranked.history), cupWins: winsIn(cupGames),
+    trophies, champion: trophies.some((t) => t.place === 1),
+  };
+}
+function themeUnlocked(id, stats = playerStats()) {
+  const t = BOARD_THEMES[id];
+  return !!t && (stats.wins >= t.wins || (t.trophy && stats.champion));
+}
 function boardTheme() {
-  try { const t = localStorage.getItem(THEME_KEY); return BOARD_THEMES[t] ? t : "wood"; } catch { return "wood"; }
+  try {
+    const t = localStorage.getItem(THEME_KEY);
+    return BOARD_THEMES[t] && themeUnlocked(t) ? t : "wood";
+  } catch { return "wood"; }
+}
+
+// Pop up "New board unlocked!" for anything earned since last time
+function checkUnlocks() {
+  if (typeof document === "undefined") return;
+  const stats = playerStats();
+  const seen = readJson("elo-unlocks-seen", null);
+  const unlocked = Object.keys(BOARD_THEMES).filter((id) => themeUnlocked(id, stats));
+  try { localStorage.setItem("elo-unlocks-seen", JSON.stringify(unlocked)); } catch {}
+  if (!seen) return; // first visit: nothing to celebrate yet
+  const fresh = unlocked.filter((id) => !seen.includes(id));
+  fresh.forEach((id, i) => setTimeout(() => toast(`🎉 New board unlocked: <b>${BOARD_THEMES[id].name}</b>`, "Use it", showThemePicker), i * 1200));
+}
+function toast(html, actionLabel, action) {
+  const t = document.createElement("div");
+  t.className = "toast";
+  t.innerHTML = `<span>${html}</span>${actionLabel ? `<button type="button" class="primary">${actionLabel}</button>` : ""}`;
+  if (actionLabel) t.querySelector("button").addEventListener("click", () => { t.remove(); action(); });
+  document.body.append(t);
+  setTimeout(() => t.classList.add("out"), 6000);
+  setTimeout(() => t.remove(), 6600);
 }
 function applyBoardTheme(id = boardTheme()) {
   if (typeof document === "undefined") return;
@@ -37,7 +89,10 @@ function applyBoardTheme(id = boardTheme()) {
 }
 // One CSS rule per theme, so switching is instant
 if (typeof document !== "undefined") {
-  const css = Object.entries(BOARD_THEMES).map(([id, t]) => `:root[data-board-theme="${id}"], [data-board-theme-preview="${id}"] { --light: ${t.light}; --dark: ${t.dark}; --frame: ${t.frame}; --board-glow: ${t.glow};${t.neon ? " --pc-b: #ff4fb3; --pc-b-glow: 0 0 6px #ff4fb3, 0 0 14px rgba(255, 79, 179, .7); --pc-w-glow: 0 0 6px #7ff6ff, 0 0 14px rgba(0, 229, 255, .7);" : ""} }`).join("\n");
+  const css = Object.entries(BOARD_THEMES).map(([id, t]) => {
+    const glow = t.glowPieces ? ` --pc-b: ${t.glowPieces[1]}; --pc-b-glow: 0 0 6px ${t.glowPieces[1]}, 0 0 14px ${t.glowPieces[1]}; --pc-w-glow: 0 0 6px ${t.glowPieces[0]}, 0 0 14px ${t.glowPieces[0]};` : "";
+    return `:root[data-board-theme="${id}"], [data-board-theme-preview="${id}"] { --light: ${t.light}; --dark: ${t.dark}; --frame: ${t.frame}; --board-glow: ${t.glow};${glow} }`;
+  }).join("\n");
   const style = document.createElement("style");
   style.textContent = css;
   document.head.append(style);
@@ -140,6 +195,7 @@ function squareNamesButton() {
 // Theme picker: a mini board for every theme
 function showThemePicker() {
   const current = boardTheme();
+  const stats = playerStats();
   const mini = (id) => {
     let cells = "";
     for (let i = 0; i < 16; i++) cells += `<i class="${(Math.floor(i / 4) + i) % 2 ? "d" : "l"}"></i>`;
@@ -149,9 +205,14 @@ function showThemePicker() {
   box.className = "update-modal";
   box.innerHTML = `
     <div class="update-card" role="dialog" aria-label="Board style" style="max-width: 560px">
-      <h2 style="margin: 0 0 12px">🎨 Pick a board style</h2>
-      <div class="theme-grid">${Object.entries(BOARD_THEMES).map(([id, t]) => `
-        <button type="button" class="theme-pick ${id === current ? "on" : ""}" data-pick-theme="${id}">${mini(id)}<span>${t.name}</span></button>`).join("")}
+      <h2 style="margin: 0 0 4px">🎨 Pick a board style</h2>
+      <p class="dim" style="margin: 0 0 12px">You've won <b>${stats.wins}</b> game${stats.wins === 1 ? "" : "s"}. Win more to unlock new boards!</p>
+      <div class="theme-grid">${Object.entries(BOARD_THEMES).map(([id, t]) => {
+        const open = themeUnlocked(id, stats);
+        const need = t.trophy ? `Win a Sunday Cup or ${t.wins} games` : `Win ${t.wins} game${t.wins === 1 ? "" : "s"}`;
+        return `<button type="button" class="theme-pick ${id === current ? "on" : ""} ${open ? "" : "locked"}" ${open ? `data-pick-theme="${id}"` : "disabled"}>
+          ${mini(id)}<span>${t.name}</span>${open ? "" : `<small>🔒 ${need}<br>${Math.min(stats.wins, t.wins)} / ${t.wins}</small>`}</button>`;
+      }).join("")}
       </div>
       <button class="primary" type="button" data-close style="margin-top: 14px">Done</button>
     </div>`;

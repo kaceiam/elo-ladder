@@ -15,15 +15,13 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="stylesheet" href="app.css">
 </head>
-<body>
+<body class="app">
 <main>
   <div class="row" style="justify-content: space-between">
-    <h1>Play a Friend</h1>
-    <div class="row">
-      <a class="btn" href="training.html">🎓 Training</a>
-      <a class="btn" href="bots.html">Play bots</a>
-    </div>
+    <h1>🌐 Online Play</h1>
+    <a class="btn primary" href="online.html" id="lobbyLink" hidden>Online lobby →</a>
   </div>
+  <p class="dim" style="margin: -8px 0 0">Invite a friend with a link and play from anywhere.</p>
 
   <!-- Start: name + create an invite -->
   <div id="setup" hidden>
@@ -142,6 +140,7 @@
 <script src="elo.js"></script>
 <script src="names.js"></script>
 <script src="board.js"></script>
+<script src="nav.js"></script>
 <script src="vendor/qrcode.min.js"></script>
 <script src="vendor/peerjs.min.js"></script>
 <script>
@@ -488,6 +487,8 @@
       profile.history = profile.history.slice(0, 50);
       saveProfile();
       renderProfile();
+      checkUnlocks();
+      refreshNav();
     }
     renderGame();
   }
@@ -630,6 +631,9 @@
 
   // Live updates wait until a friend game is over (restarting would drop the connection)
   window.updateBusy = () => !!(G && G.status === "playing");
+  fetch("api/health").then((r) => r.json()).then((d) => { if (d.app === "elo-ladder") $("lobbyLink").hidden = false; }).catch(() => {});
+  // The menu's Change name updates this page too
+  document.addEventListener("profilechange", () => { try { profile = { ...profile, ...JSON.parse(localStorage.getItem(PROFILE_KEY)) }; } catch {} renderProfile(); });
 
   window.addEventListener("beforeunload", (e) => {
     if (G && G.status === "playing") { e.preventDefault(); e.returnValue = ""; }

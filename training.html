@@ -15,15 +15,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="stylesheet" href="app.css">
 </head>
-<body>
+<body class="app">
 <main>
   <div class="row" style="justify-content: space-between">
-    <h1 id="pageTitle">Training</h1>
-    <div class="row">
-      <a class="btn" href="index.html">Home</a>
-      <a class="btn" href="bots.html">Play bots</a>
-      <a class="btn" href="friend.html">Play a friend</a>
-    </div>
+    <h1 id="pageTitle">🎓 Training</h1>
   </div>
 
   <!-- All sections -->
@@ -97,6 +92,8 @@
 <script src="update.js"></script>
 <script src="vendor/chess.min.js"></script>
 <script src="board.js"></script>
+<script src="names.js"></script>
+<script src="nav.js"></script>
 <script>
   const KEY = "elo-training";
   const $ = (id) => document.getElementById(id);

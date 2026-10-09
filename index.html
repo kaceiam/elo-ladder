@@ -162,14 +162,6 @@
   <span class="float-pc" style="left: 48%; top: 6%; animation-delay: -2s; font-size: 44px">♟</span>
 </div>
 <main>
-  <div class="topbar">
-    <div class="brand"><img src="icons/icon-192.png" alt="">Elo Ladder</div>
-    <div class="row">
-      <a class="btn" href="training.html">🎓 Training</a>
-      <a class="btn" href="online.html" id="lobbyTop" hidden>Online lobby</a>
-      <a class="btn primary" href="bots.html">Play</a>
-    </div>
-  </div>
 
   <section class="hero2" style="background: none; border: none; padding: 0">
     <div>
@@ -261,6 +253,8 @@
 <script src="vendor/chess.min.js"></script>
 <script src="elo.js"></script>
 <script src="board.js"></script>
+<script src="names.js"></script>
+<script src="nav.js"></script>
 <script>
   const $ = (id) => document.getElementById(id);
 
@@ -337,7 +331,7 @@
   renderInstall();
 
   // The online lobby only exists where the game server runs
-  fetch("api/health").then((r) => r.json()).then((d) => { if (d.app === "elo-ladder") $("lobbyLink").hidden = $("lobbyTop").hidden = false; }).catch(() => {});
+  fetch("api/health").then((r) => r.json()).then((d) => { if (d.app === "elo-ladder") $("lobbyLink").hidden = false; }).catch(() => {});
 </script>
 </body>
 </html>

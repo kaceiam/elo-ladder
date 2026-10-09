@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sunday Cup – Weekly Chess Tournament – Elo Ladder</title>
+<meta name="description" content="Every Sunday: a 5-round chess tournament with 32 players, live standings, trophies and an exclusive gold board for the champion.">
+<link rel="canonical" href="https://kaceiam.github.io/elo-ladder/tournament.html">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0b0d18">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="app.css">
+</head>
+<body class="app">
+<main>
+  <section class="cup-hero glass">
+    <div class="cup-trophy">🏆</div>
+    <div>
+      <div class="dim small">EVERY SUNDAY</div>
+      <h1 class="cup-title">Sunday Cup</h1>
+      <p class="dim" style="margin: 0">5 rounds · 32 players · 5 min + 2 sec per move. Win the cup to unlock the <b style="color: #ffcf40">Champion gold</b> board.</p>
+      <div id="cupState" class="cup-state"></div>
+    </div>
+  </section>
+
+  <section id="roundArea" hidden>
+    <div class="row" style="justify-content: space-between">
+      <h2 id="roundTitle" style="margin: 0"></h2>
+      <span class="dim" id="roundInfo"></span>
+    </div>
+    <div id="matchArea" style="margin-top: 12px"></div>
+  </section>
+
+  <section id="finalCard" class="result-card glass" hidden></section>
+
+  <section id="standingsBox" hidden>
+    <h2>Standings</h2>
+    <table class="standings">
+      <thead><tr><th>#</th><th>Player</th><th class="num">Rating</th><th class="num">Points</th><th class="num hide-sm">Rounds</th></tr></thead>
+      <tbody id="standings"></tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Your trophy cabinet</h2>
+    <div class="cabinet" id="cabinet"></div>
+  </section>
+</main>
+
+<script src="pwa.js"></script>
+<script src="update.js"></script>
+<script src="vendor/chess.min.js"></script>
+<script src="elo.js"></script>
+<script src="names.js"></script>
+<script src="board.js"></script>
+<script src="bots.js"></script>
+<script src="match.js"></script>
+<script src="nav.js"></script>
+<script>
+  const KEY = "elo-sunday-cup";
+  const ROUNDS = 5, FIELD = 32;
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+  let C = { weeks: {} };
+  try { C = { ...C, ...JSON.parse(localStorage.getItem(KEY)) }; } catch {}
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(C)); } catch {} };
+
+  const isSunday = () => new Date().getDay() === 0 || new URLSearchParams(location.search).has("sunday");
+  const dayKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const todayKey = () => dayKey();
+  const pts = (x) => (x % 1 ? `${Math.floor(x)}½` : String(x)).replace(/^0½$/, "½");
+
+  // An unfinished cup (from any Sunday) can still be finished later
+  const openWeek = () => Object.values(C.weeks).find((w) => !w.finished);
+  const myRating = () => {
+    try { const r = JSON.parse(localStorage.getItem("elo-ranked")); if (r && r.games >= 5) return Math.round(r.elo); } catch {}
+    try { return Math.round(JSON.parse(localStorage.getItem("elo-ladder-v1")).me.elo); } catch {}
+    return 1000;
+  };
+
+  // ---------- the tournament ----------
+
+  function seededRand(seed) {
+    let s = 0;
+    for (const ch of String(seed)) s = (s * 31 + ch.charCodeAt(0)) % 2147483647;
+    return () => ((s = (s * 1103515245 + 12345) % 2147483648) / 2147483648);
+  }
+
+  function createWeek() {
+    const week = todayKey();
+    const rand = seededRand(week);
+    const me = myRating();
+    const players = [{ id: 0, name: myDisplayName(), elo: me, score: 0, opps: [], results: [], me: true }];
+    for (let i = 1; i < FIELD; i++) {
+      // A field spread around your rating: some weaker, some much stronger
+      const spread = (rand() + rand() + rand() - 1.5) * 420;
+      players.push({ id: i, name: opponentName(Math.floor(rand() * 1e9)), elo: Math.round(Math.max(300, Math.min(2900, me + spread))), score: 0, opps: [], results: [] });
+    }
+    C.weeks[week] = { week, players, round: 0, rounds: [], pending: null, finished: false };
+    save();
+    return C.weeks[week];
+  }
+
+  // Swiss pairing: players with the same score meet, nobody plays the same opponent twice
+  function pairRound(w) {
+    const order = [...w.players].sort((a, b) => b.score - a.score || b.elo - a.elo);
+    const used = new Set(), pairs = [];
+    for (const p of order) {
+      if (used.has(p.id)) continue;
+      const opp = order.find((q) => q.id !== p.id && !used.has(q.id) && !p.opps.includes(q.id)) || order.find((q) => q.id !== p.id && !used.has(q.id));
+      used.add(p.id); used.add(opp.id);
+      pairs.push([p, opp]);
+    }
+    return pairs;
+  }
+
+  function simulate(a, b) {
+    const ea = 1 / (1 + 10 ** ((b.elo - a.elo) / 400));
+    const r = Math.random();
+    const draw = 0.12;
+    return r < ea - draw / 2 ? 1 : r < ea + draw / 2 ? 0.5 : 0;
+  }
+
+  function record(w, a, b, scoreA) {
+    a.score += scoreA; b.score += 1 - scoreA;
+    a.opps.push(b.id); b.opps.push(a.id);
+    a.results.push(scoreA); b.results.push(1 - scoreA);
+  }
+
+  function finishRound(w, myScore, reason) {
+    const pairs = w.currentPairs.map(([a, b]) => [w.players[a], w.players[b]]);
+    const me = w.players[0];
+    for (const [a, b] of pairs) {
+      if (a.id === 0 || b.id === 0) {
+        const opp = a.id === 0 ? b : a;
+        record(w, me, opp, myScore);
+        w.rounds.push({ round: w.round + 1, opp: opp.name, oppElo: opp.elo, myScore, reason, color: w.pending ? w.pending.color : null });
+      } else record(w, a, b, simulate(a, b));
+    }
+    w.round++;
+    w.pending = null;
+    w.currentPairs = null;
+    if (w.round >= ROUNDS) {
+      const table = standings(w);
+      w.finished = true;
+      w.place = table.findIndex((p) => p.id === 0) + 1;
+      w.myPoints = me.score;
+    }
+    save();
+  }
+
+  // Ties broken by Buchholz (opponents' total score), then rating
+  function standings(w) {
+    const buch = (p) => p.opps.reduce((s, id) => s + w.players[id].score, 0);
+    return [...w.players].sort((a, b) => b.score - a.score || buch(b) - buch(a) || b.elo - a.elo);
+  }
+
+  // ---------- screens ----------
+
+  function renderStandings(w) {
+    $("standingsBox").hidden = false;
+    $("standings").innerHTML = standings(w).map((p, i) => `
+      <tr class="${p.id === 0 ? "me-row" : ""}"><td>${i + 1}</td><td>${p.id === 0 ? "⭐ " : ""}${esc(p.name)}${p.id === 0 ? "" : ' <span class="dim">🤖</span>'}</td>
+      <td class="num">${p.elo}</td><td class="num"><b>${pts(p.score)}</b></td>
+      <td class="num hide-sm">${p.results.map((r) => `<span class="rd ${r === 1 ? "w" : r === 0 ? "l" : "d"}">${r === 1 ? "1" : r === 0 ? "0" : "½"}</span>`).join("")}</td></tr>`).join("");
+  }
+
+  function renderCabinet() {
+    const done = Object.values(C.weeks).filter((w) => w.finished).sort((a, b) => b.week.localeCompare(a.week));
+    const medal = (p) => (p === 1 ? "🏆" : p === 2 ? "🥈" : p === 3 ? "🥉" : p <= 8 ? "🎖️" : "📜");
+    $("cabinet").innerHTML = done.length ? done.map((w) => `
+      <div class="cab-item ${w.place <= 3 ? "top" : ""}"><span class="cab-medal">${medal(w.place)}</span><b>#${w.place} of ${FIELD}</b><span class="dim small">${w.week} · ${pts(w.myPoints)}/${ROUNDS} pts</span></div>`).join("")
+      : `<p class="dim">No trophies yet. Every Sunday is a new chance!</p>`;
+  }
+
+  let countdownTimer = null;
+  function renderState() {
+    clearInterval(countdownTimer);
+    const w = openWeek();
+    const thisWeek = C.weeks[todayKey()];
+    $("finalCard").hidden = true;
+    if (w) {
+      // A cup in progress
+      $("cupState").innerHTML = `<span class="live-pill">● IN PROGRESS</span> Round ${w.round + 1} of ${ROUNDS} · you have <b>${pts(w.players[0].score)}</b> point${w.players[0].score === 1 ? "" : "s"}`;
+      renderStandings(w);
+      showRound(w);
+    } else if (isSunday() && !(thisWeek && thisWeek.finished)) {
+      $("cupState").innerHTML = `<span class="live-pill">● LIVE TODAY</span><button class="cta-btn" id="join">🏆 Join the Sunday Cup</button>`;
+      $("join").onclick = () => { const nw = createWeek(); renderState(); };
+      $("roundArea").hidden = true;
+      $("standingsBox").hidden = true;
+    } else {
+      // Countdown to next Sunday
+      const tickCd = () => {
+        const s = cupStatus();
+        const next = new Date(); next.setDate(next.getDate() + ((7 - next.getDay()) % 7 || 7)); next.setHours(0, 0, 0, 0);
+        const ms = next - new Date();
+        const d = Math.floor(ms / 864e5), h = Math.floor((ms % 864e5) / 36e5), m = Math.floor((ms % 36e5) / 6e4), sec = Math.floor((ms % 6e4) / 1000);
+        $("cupState").innerHTML = `${thisWeek && thisWeek.finished ? `<div class="dim">Today's cup is done — you finished <b>#${thisWeek.place}</b>.</div>` : ""}
+          <div class="dim small">NEXT SUNDAY CUP STARTS IN</div>
+          <div class="countdown"><span><b>${d}</b>days</span><span><b>${h}</b>hours</span><span><b>${m}</b>min</span><span><b>${sec}</b>sec</span></div>`;
+      };
+      tickCd();
+      countdownTimer = setInterval(tickCd, 1000);
+      $("roundArea").hidden = true;
+      const last = Object.values(C.weeks).filter((x) => x.finished).sort((a, b) => b.week.localeCompare(a.week))[0];
+      if (last) renderStandings(last); else $("standingsBox").hidden = true;
+    }
+    renderCabinet();
+  }
+
+  function showRound(w) {
+    if (!w.currentPairs) {
+      w.currentPairs = pairRound(w).map(([a, b]) => [a.id, b.id]);
+      save();
+    }
+    const pair = w.currentPairs.find(([a, b]) => a === 0 || b === 0);
+    const opp = w.players[pair[0] === 0 ? pair[1] : pair[0]];
+    const lastColor = w.rounds.length ? w.rounds[w.rounds.length - 1].color : (Math.random() < 0.5 ? "b" : "w");
+    const color = lastColor === "w" ? "b" : "w";
+    $("roundArea").hidden = false;
+    $("roundTitle").textContent = `Round ${w.round + 1} of ${ROUNDS}`;
+    $("roundInfo").innerHTML = `vs <b>${esc(opp.name)}</b> (${opp.elo}) 🤖 · ${pts(opp.score)} pts`;
+    $("matchArea").innerHTML = `<div class="row" style="justify-content: center; padding: 30px">
+      <button class="cta-btn" id="startRound">▶ Start round ${w.round + 1}</button></div>`;
+    $("startRound").onclick = () => {
+      w.pending = { round: w.round, opp: opp.id, color };
+      save();
+      startMatch($("matchArea"), {
+        me: { name: myDisplayName(), elo: w.players[0].elo }, opp: { name: `${opp.name} 🤖`, elo: opp.elo }, color,
+        clock: { base: 5 * 60_000, inc: 2000 }, label: `🏆 Sunday Cup · Round ${w.round + 1} of ${ROUNDS}`,
+        onEnd: ({ score, reason }) => {
+          finishRound(w, score, reason);
+          renderStandings(w);
+          checkUnlocks();
+          refreshNav();
+          const done = w.finished;
+          const after = $("matchArea").querySelector(".side");
+          const btn = document.createElement("button");
+          btn.className = "cta-btn";
+          btn.textContent = done ? "🏆 See final results" : `▶ Next: round ${w.round + 1}`;
+          btn.onclick = () => (done ? showFinal(w) : renderState());
+          after.append(btn);
+          $("cupState").innerHTML = done ? `<span class="live-pill">● FINISHED</span>` : `<span class="live-pill">● IN PROGRESS</span> Round ${w.round + 1} of ${ROUNDS} · you have <b>${pts(w.players[0].score)}</b> points`;
+        },
+      });
+    };
+  }
+
+  function showFinal(w) {
+    $("roundArea").hidden = true;
+    const place = w.place;
+    const title = place === 1 ? "🏆 CHAMPION!" : place === 2 ? "🥈 Second place!" : place === 3 ? "🥉 Third place!" : place <= 8 ? "🎖️ Top 8!" : "Tournament complete";
+    $("finalCard").innerHTML = `
+      <div class="result-big ${place <= 3 ? "win" : "draw"}">${title}</div>
+      <div class="result-change">You finished <b>#${place}</b> of ${FIELD} with <b>${pts(w.myPoints)}</b> / ${ROUNDS} points</div>
+      ${place === 1 ? `<div class="banner">👑 You unlocked the <b>Champion gold</b> board! Open 🎨 Board style to use it.</div>` : `<div class="dim">Win a Sunday Cup to unlock the Champion gold board. See you next Sunday!</div>`}`;
+    $("finalCard").hidden = false;
+    $("finalCard").scrollIntoView({ behavior: "smooth" });
+    renderCabinet();
+    renderState();
+    $("finalCard").hidden = false;
+  }
+
+  // A round you walked out of counts as a loss
+  for (const w of Object.values(C.weeks)) {
+    if (w.pending && !w.finished) {
+      if (!w.currentPairs) w.currentPairs = pairRound(w).map(([a, b]) => [a.id, b.id]);
+      finishRound(w, 0, "left the game");
+    }
+  }
+
+  window.updateBusy = () => { const w = openWeek(); return !!(w && w.pending); };
+  renderState();
+</script>
+</body>
+</html>

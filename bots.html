@@ -14,14 +14,11 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="stylesheet" href="app.css"></head>
-<body>
+<body class="app">
 <main>
   <div class="row" style="justify-content: space-between">
-    <h1>Elo Ladder</h1>
+    <h1>♚ Play the Bots</h1>
     <div class="row">
-      <a class="btn" href="training.html">🎓 Training</a>
-      <a class="btn primary" href="friend.html">Play a friend</a>
-      <a class="btn" href="online.html" id="onlineLink">Online lobby</a>
       <button id="reset">Reset all</button>
     </div>
   </div>
@@ -133,6 +130,8 @@
 <script src="vendor/chess.min.js"></script>
 <script src="elo.js"></script>
 <script src="board.js"></script>
+<script src="names.js"></script>
+<script src="nav.js"></script>
 <script src="bots.js"></script>
 <script>
   const KEY = "elo-ladder-v1";
@@ -143,7 +142,7 @@
 
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-  const fmt = (n) => `<span class="${n >= 0 ? "up" : "down"}">${n >= 0 ? "+" : ""}${n.toFixed(1)}</span>`;
+  const fmt = (n = 0) => `<span class="${n >= 0 ? "up" : "down"}">${n >= 0 ? "+" : ""}${n.toFixed(1)}</span>`;
   const byId = (id) => state.players.find((p) => p.id === id);
   const botById = (id) => BOTS.find((b) => b.id === id);
 
@@ -331,6 +330,8 @@
     $("newGame").hidden = false;
     renderBoard();
     renderMe();
+    checkUnlocks();
+    refreshNav();
   }
 
   for (const r of document.querySelectorAll(".names-row")) r.innerHTML = squareNamesButton();

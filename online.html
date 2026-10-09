@@ -13,15 +13,13 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="stylesheet" href="app.css"></head>
-<body>
+<body class="app">
 <main>
   <div class="row" style="justify-content: space-between">
-    <h1>Elo Ladder Online</h1>
+    <h1>🌐 Online Lobby</h1>
     <div class="row">
       <button class="primary" id="installBtn" hidden>Install app</button>
       <button id="phoneBtn">📱 Phone</button>
-      <a class="btn" href="training.html">🎓 Training</a>
-      <a class="btn" href="bots.html">Play bots</a>
       <button id="changeName" hidden>Change name</button>
       <button class="primary" id="adminBtn" hidden>🛡 Admin</button>
     </div>
@@ -260,6 +258,7 @@
 <script src="elo.js"></script>
 <script src="names.js"></script>
 <script src="board.js"></script>
+<script src="nav.js"></script>
 <script src="vendor/qrcode.min.js"></script>
 <script>
   const TOKENS_KEY = "elo-online-tokens"; // { name: token } so switching players on one device works
@@ -362,6 +361,9 @@
     try { await api("rename", { name: name.trim() }); }
     catch (err) { alert(err.message); }
   });
+
+  // The menu's Change name renames your online account
+  window.onlineRename = async (name) => { if (me) await api("rename", { name }); };
 
   // Keep this device's saved login pointing at the current name after a rename
   function rememberName(name) {

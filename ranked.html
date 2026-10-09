@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ranked Chess – Climb from Bronze to Grandmaster – Elo Ladder</title>
+<meta name="description" content="Ranked chess matches with real clocks. Play placement games, then climb from Bronze to Silver, Gold, Platinum, Diamond, Master and Grandmaster.">
+<link rel="canonical" href="https://kaceiam.github.io/elo-ladder/ranked.html">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0b0d18">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="app.css">
+</head>
+<body class="app">
+<main>
+  <section class="rank-hero glass">
+    <div class="emblem" id="emblem"><span>♛</span></div>
+    <div class="rank-info">
+      <div class="dim small">YOUR RANK</div>
+      <div class="rank-name" id="rankName">Unranked</div>
+      <div class="rank-elo"><b id="rankElo">1000</b> <span class="dim">ranked rating</span></div>
+      <div class="bar" style="max-width: 360px"><i id="rankBar"></i></div>
+      <div class="dim small" id="rankNext"></div>
+      <div class="rank-stats" id="rankStats"></div>
+    </div>
+    <div class="queue">
+      <label class="dim small" for="tc">Time control</label>
+      <select id="tc">
+        <option value="3+2">⚡ Blitz 3 + 2</option>
+        <option value="5+0">⚡ Blitz 5 min</option>
+        <option value="10+0" selected>🕑 Rapid 10 min</option>
+        <option value="15+10">🕑 Rapid 15 + 10</option>
+      </select>
+      <button class="cta-btn" id="playRanked">⚔️ Play ranked</button>
+      <div class="dim small" id="queueNote">Opponents are Stockfish bots matched to your rating.</div>
+    </div>
+  </section>
+
+  <section id="matchArea" hidden></section>
+  <section id="resultCard" class="result-card glass" hidden></section>
+
+  <section>
+    <h2>The ladder</h2>
+    <div class="ladder" id="ladder"></div>
+  </section>
+
+  <section>
+    <h2>Ranked games</h2>
+    <table>
+      <thead><tr><th>Opponent</th><th>Color</th><th>Result</th><th class="num">Change</th><th class="num">Rating</th></tr></thead>
+      <tbody id="history"></tbody>
+    </table>
+  </section>
+</main>
+
+<script src="pwa.js"></script>
+<script src="update.js"></script>
+<script src="vendor/chess.min.js"></script>
+<script src="elo.js"></script>
+<script src="names.js"></script>
+<script src="board.js"></script>
+<script src="bots.js"></script>
+<script src="match.js"></script>
+<script src="nav.js"></script>
+<script>
+  const KEY = "elo-ranked";
+  const PLACEMENTS = 5;
+  const TC = { "3+2": [3, 2], "5+0": [5, 0], "10+0": [10, 0], "15+10": [15, 10] };
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+  const fmt = (n) => `<span class="${n >= 0 ? "up" : "down"}">${n >= 0 ? "+" : ""}${Math.round(n)}</span>`;
+
+  // Start ranked near the rating you already have against the bots
+  const botElo = (() => { try { return JSON.parse(localStorage.getItem("elo-ladder-v1")).me.elo; } catch { return null; } })();
+  let R = { elo: Math.round(Math.max(400, Math.min(1600, botElo || 1000))), games: 0, wins: 0, losses: 0, draws: 0, peak: 0, history: [], pending: null };
+  try { R = { ...R, ...JSON.parse(localStorage.getItem(KEY)) }; } catch {}
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(R)); } catch {} };
+
+  // A game you left in the middle counts as a loss
+  if (R.pending) {
+    applyResult(R.pending, 0, "left the game");
+  }
+
+  function applyResult(p, score, reason) {
+    const placement = R.games < PLACEMENTS;
+    const before = R.elo;
+    const k = placement ? 64 : R.games < 30 ? 40 : 20;
+    const expected = 1 / (1 + 10 ** ((p.oppElo - R.elo) / 400));
+    const change = k * (score - expected);
+    R.elo = Math.max(100, Math.min(3300, R.elo + change));
+    R.games++;
+    R[score === 1 ? "wins" : score === 0 ? "losses" : "draws"]++;
+    R.peak = Math.max(R.peak || 0, R.elo);
+    R.history.unshift({ at: Date.now(), opp: p.opp, oppElo: p.oppElo, color: p.color, result: score, reason, change, after: R.elo, tc: p.tc });
+    R.history = R.history.slice(0, 100);
+    R.pending = null;
+    save();
+    return { before, change, placement };
+  }
+
+  function render() {
+    const t = tierOf(R.elo);
+    const placed = R.games >= PLACEMENTS;
+    $("emblem").style.setProperty("--tc", t.color);
+    $("emblem").querySelector("span").textContent = t.icon;
+    $("emblem").classList.toggle("unranked", !placed);
+    $("rankName").textContent = placed ? t.label : `Placement ${R.games} / ${PLACEMENTS}`;
+    $("rankName").style.color = placed ? t.color : "";
+    $("rankElo").textContent = Math.round(R.elo);
+    $("rankBar").style.width = `${placed ? t.progress * 100 : (R.games / PLACEMENTS) * 100}%`;
+    $("rankBar").style.background = t.color;
+    $("rankNext").textContent = !placed ? `Play ${PLACEMENTS - R.games} more placement game${PLACEMENTS - R.games === 1 ? "" : "s"} to get your rank.`
+      : t.next ? `${Math.ceil(t.next.at - R.elo)} points to ${t.next.label}` : "You're at the top of the ladder!";
+    $("rankStats").innerHTML = `<span><b>${R.wins}</b> W</span><span><b>${R.losses}</b> L</span><span><b>${R.draws}</b> D</span><span>Peak <b>${Math.round(R.peak || R.elo)}</b></span>`;
+    $("ladder").innerHTML = TIERS.map((x, i) => {
+      const mine = placed && t.name === x.name;
+      return `<div class="rung ${mine ? "mine" : ""}" style="--tc: ${x.color}"><span class="mini-emblem">${x.icon}</span><b>${x.name}</b><span class="dim small">${x.min}${TIERS[i + 1] ? `–${TIERS[i + 1].min - 1}` : "+"}</span>${mine ? `<span class="small">← you</span>` : ""}</div>`;
+    }).join("");
+    const word = { 1: "Won", 0.5: "Draw", 0: "Lost" };
+    $("history").innerHTML = R.history.length ? R.history.map((h) => `
+      <tr><td>${esc(h.opp)} <span class="dim">(${h.oppElo}) 🤖</span></td><td>${h.color === "w" ? "White" : "Black"}</td>
+      <td>${word[h.result]} <span class="dim">· ${esc(h.reason)}</span></td><td class="num">${fmt(h.change)}</td><td class="num">${Math.round(h.after)}</td></tr>`).join("")
+      : `<tr><td colspan="5" class="empty">No ranked games yet. Hit ⚔️ Play ranked!</td></tr>`;
+  }
+
+  $("playRanked").addEventListener("click", async () => {
+    $("playRanked").disabled = true;
+    $("resultCard").hidden = true;
+    $("queueNote").innerHTML = `<span class="thinking">Finding a bot opponent at your level</span>`;
+    await new Promise((r) => setTimeout(r, 700));
+    const oppElo = Math.round(Math.max(200, R.elo + (Math.random() * 120 - 60)));
+    const opp = opponentName(Date.now());
+    const [mins, inc] = TC[$("tc").value];
+    const p = { opp, oppElo, tc: $("tc").value, color: null };
+    $("matchArea").hidden = false;
+    $("matchArea").scrollIntoView({ behavior: "smooth" });
+    const t = tierOf(R.elo);
+    startMatch($("matchArea"), {
+      me: { name: myDisplayName(), elo: R.elo }, opp: { name: `${opp} 🤖`, elo: oppElo }, color: "random",
+      clock: { base: mins * 60_000, inc: inc * 1000 },
+      label: `⚔️ Ranked · ${R.games < PLACEMENTS ? `Placement ${R.games + 1}/${PLACEMENTS}` : t.label} · ${$("tc").selectedOptions[0].text}`,
+      onEnd: ({ score, reason, color }) => {
+        p.color = color;
+        const beforeTier = tierOf(R.elo), wasPlaced = R.games >= PLACEMENTS;
+        const { change } = applyResult(p, score, reason);
+        const afterTier = tierOf(R.elo), placedNow = R.games >= PLACEMENTS;
+        let banner = "";
+        if (!wasPlaced && placedNow) banner = `🎖️ Placement complete — you're <b style="color: ${afterTier.color}">${afterTier.label}</b>!`;
+        else if (placedNow && afterTier.rank > beforeTier.rank) banner = `⬆️ Promoted to <b style="color: ${afterTier.color}">${afterTier.label}</b>!`;
+        else if (placedNow && afterTier.rank < beforeTier.rank) banner = `⬇️ Dropped to ${afterTier.label}. You'll climb back!`;
+        $("resultCard").innerHTML = `
+          <div class="result-big ${score === 1 ? "win" : score === 0 ? "loss" : "draw"}">${score === 1 ? "VICTORY" : score === 0 ? "DEFEAT" : "DRAW"}</div>
+          <div class="result-change">${fmt(change)} <span class="dim">→ ${Math.round(R.elo)}</span></div>
+          ${banner ? `<div class="banner">${banner}</div>` : ""}
+          <button class="cta-btn" id="again">⚔️ Play again</button>`;
+        $("resultCard").hidden = false;
+        $("again").onclick = () => $("playRanked").click();
+        $("playRanked").disabled = false;
+        $("queueNote").textContent = "Opponents are Stockfish bots matched to your rating.";
+        render();
+        checkUnlocks();
+        refreshNav();
+      },
+    });
+    // Leaving mid-game counts as a loss
+    R.pending = p;
+    save();
+    $("queueNote").textContent = "Game on! Leaving now counts as a loss.";
+  });
+
+  window.updateBusy = () => !!R.pending;
+  render();
+</script>
+</body>
+</html>

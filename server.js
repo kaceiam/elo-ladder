@@ -53,7 +53,7 @@ const meView = (p) => ({ ...publicPlayer(p), admin: !!p.admin, blocked: p.blocke
 
 // The account named ADMIN_NAME is the admin. Claiming that name (or signing
 // into it on a new device) needs the secret key in data/admin-key.txt.
-const ADMIN_NAME = process.env.ADMIN_NAME || "Keyace";
+const ADMIN_NAME = process.env.ADMIN_NAME || ""; // empty: no reserved admin name
 const ADMIN_KEY_FILE = path.join(DATA_DIR, "admin-key.txt");
 let adminKey;
 try { adminKey = fs.readFileSync(ADMIN_KEY_FILE, "utf8").trim(); } catch {}
@@ -68,7 +68,7 @@ const ADMINS_FILE = path.join(DATA_DIR, "admins.json");
 let extraAdmins = {};
 try { extraAdmins = JSON.parse(fs.readFileSync(ADMINS_FILE, "utf8")); } catch {}
 const lc = (s) => String(s || "").trim().toLowerCase();
-const isAdminName = (name) => lc(name) === lc(ADMIN_NAME) || Object.keys(extraAdmins).some((n) => lc(n) === lc(name));
+const isAdminName = (name) => (!!ADMIN_NAME && lc(name) === lc(ADMIN_NAME)) || Object.keys(extraAdmins).some((n) => lc(n) === lc(name));
 const adminKeyFor = (name) => lc(name) === lc(ADMIN_NAME) ? adminKey : Object.entries(extraAdmins).find(([n]) => lc(n) === lc(name))?.[1];
 for (const acct of Object.values(players)) {
   if (isAdminName(acct.name) && !acct.admin) { acct.admin = true; savePlayers(); }

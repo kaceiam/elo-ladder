@@ -1,11 +1,12 @@
 {
-  "version": 9,
-  "title": "Quick match: play anyone, any speed",
+  "version": 10,
+  "title": "New player setup and age groups",
   "notes": [
-    "⚡ Quick match on Online Play: pick Bullet (1 min or 2 + 1), Blitz (3 + 2 or 5 min) or Rapid (10 or 15 + 10) and get matched with the next player looking for the same game.",
-    "Works anywhere, on the website and in the app.",
-    "🚩 Reports now go privately by email and are never posted publicly."
+    "👋 Everyone sets up their player: pick a name, how good you are (Beginner to Grandmaster) and your age.",
+    "⚡ Quick match now pairs you with players your age: 12 and under, 13–17, or 18 and over.",
+    "🏆 Tournament time controls in quick match: 30 minutes or 1 hour.",
+    "All names are free again: everyone picks a fresh one."
   ],
-  "countdown": 60,
+  "countdown": 30,
   "date": "2026-10-10"
 }

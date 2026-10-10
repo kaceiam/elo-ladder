@@ -222,6 +222,86 @@ function showEloPanel() {
   document.body.append(box);
 }
 
+// ---------- first-time setup: name, level and age ----------
+// Everyone picks these once before playing. The level sets the starting
+// rating; the age stays on this device, and only the age group is used, so
+// quick matches pair players with others their age.
+
+const SETUP_VERSION = 1;
+const LEVELS = [
+  { name: "Beginner", elo: 600, note: "Just learning how the pieces move" },
+  { name: "Novice", elo: 900, note: "Know the rules, still learning tactics" },
+  { name: "Intermediate", elo: 1200, note: "Play regularly, know some openings" },
+  { name: "Advanced", elo: 1500, note: "Strong club player" },
+  { name: "Expert", elo: 1800, note: "Tournament player" },
+  { name: "Master", elo: 2100, note: "Master-level strength" },
+  { name: "Grandmaster", elo: 2500, note: "The very best" },
+];
+const AGE_GROUPS = [
+  { id: "kids", label: "12 and under", max: 12 },
+  { id: "teens", label: "13–17", max: 17 },
+  { id: "adults", label: "18 and over", max: Infinity },
+];
+function ageGroupOf(age) { return AGE_GROUPS.find((g) => age <= g.max).id; }
+function myAgeGroup() { return readProfile().ageGroup || null; }
+
+function needsSetup() { return (readProfile().setup || 0) < SETUP_VERSION; }
+
+function showSetup() {
+  if (document.querySelector(".setup-card")) return;
+  let level = null;
+  const box = document.createElement("div");
+  box.className = "update-modal";
+  box.innerHTML = `
+    <form class="update-card setup-card" role="dialog" aria-label="Set up your player">
+      <h2 style="margin: 0 0 4px">♞ Welcome to Elo Ladder</h2>
+      <p class="dim" style="margin: 0 0 14px">Set up your player to start playing.</p>
+      <label class="setup-label">1. Pick a name</label>
+      <input type="text" data-setup-name maxlength="20" placeholder="Your player name" autocomplete="off">
+      <div class="dim small" style="margin-top: 4px">2–20 letters or numbers. You can change it once, then once every 180 days.</div>
+      <label class="setup-label">2. How good are you?</label>
+      <div class="setup-levels">${LEVELS.map((l, i) => `<button type="button" data-level="${i}"><b>${l.name}</b><span>${l.note}</span></button>`).join("")}</div>
+      <label class="setup-label">3. How old are you?</label>
+      <input type="number" data-setup-age min="4" max="120" inputmode="numeric" placeholder="Your age">
+      <div class="dim small" style="margin-top: 4px">Quick match puts you with players your age. Your age stays on this phone.</div>
+      <div class="err" data-setup-err></div>
+      <button class="primary" style="margin-top: 14px; width: 100%">Start playing</button>
+    </form>`;
+  box.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-level]");
+    if (!b) return;
+    level = LEVELS[+b.dataset.level];
+    for (const x of box.querySelectorAll("[data-level]")) x.classList.toggle("on", x === b);
+  });
+  box.querySelector("form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const err = box.querySelector("[data-setup-err]");
+    const name = box.querySelector("[data-setup-name]").value.trim();
+    const age = parseInt(box.querySelector("[data-setup-age]").value, 10);
+    const rule = window.EloNames ? EloNames.checkName(name) : { ok: /^[A-Za-z0-9 _-]{2,20}$/.test(name), reason: "Names are 2–20 letters, numbers, spaces, _ or -" };
+    if (!rule.ok) { err.textContent = rule.reason; return; }
+    if (!level) { err.textContent = "Pick how good you are."; return; }
+    if (!(age >= 4 && age <= 120)) { err.textContent = "Enter your age (a number)."; return; }
+    const p = readProfile();
+    Object.assign(p, { name, nameSetAt: Date.now(), nameChangedAt: undefined, level: level.name, elo: level.elo,
+      age, ageGroup: ageGroupOf(age), setup: SETUP_VERSION });
+    if (!p.history) p.history = [];
+    if (!p.games) p.games = 0;
+    writeProfile(p);
+    // New players start their bot rating at their level too
+    try {
+      const b = JSON.parse(localStorage.getItem("elo-ladder-v1")) || {};
+      if (!(b.games || []).length) { b.me = { ...(b.me || { games: 0 }), elo: level.elo }; localStorage.setItem("elo-ladder-v1", JSON.stringify(b)); }
+    } catch {}
+    box.remove();
+    refreshNav();
+    document.dispatchEvent(new Event("profilechange"));
+    document.dispatchEvent(new Event("ratingchange"));
+  });
+  document.body.append(box);
+  setTimeout(() => box.querySelector("[data-setup-name]").focus(), 50);
+}
+
 // ---------- start ----------
 
 (function () {
@@ -229,6 +309,7 @@ function showEloPanel() {
   document.body.classList.add("has-nav");
   document.body.insertAdjacentHTML("afterbegin", navHtml());
   refreshNav();
+  if (needsSetup()) showSetup();
   document.addEventListener("click", (e) => {
     if (e.target.closest("[data-profile]")) showProfile();
     if (e.target.closest("[data-elo-panel]")) showEloPanel();

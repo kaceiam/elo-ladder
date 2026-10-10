@@ -26,7 +26,7 @@
     "coon", "spic", "paki", "gook", "isis", "jihad", "kys", "die", "meth", "weed", "crack", "coke", "drug", "drugs", "dealer", "stoner", "lsd",
     "kill", "racist", "racism", "stfu",
   ];
-  const STAFF_STRONG = ["admin", "administrator", "moderator", "keyace", "official", "staff", "elosupport", "eloteam", "elostaff"];
+  const STAFF_STRONG = ["admin", "administrator", "moderator", "official", "staff", "elosupport", "eloteam", "elostaff"];
   const STAFF_WORDS = ["mod", "mods", "dev", "devs", "owner", "support", "system", "server", "gm"];
   // Real words that happen to contain a blocked one; removed before checking
   const SAFE_CONTAINING = ["badminton", "staffordshire", "therapist", "scunthorpe", "shiitake", "penistone"];

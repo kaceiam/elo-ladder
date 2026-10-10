@@ -43,7 +43,7 @@
       </section>
       <section>
         <h2>⚡ Quick match</h2>
-        <div class="dim" style="margin-bottom: 8px">Pick a time control and play the next person looking for a game.</div>
+        <div class="dim" style="margin-bottom: 8px">Pick a time control and play the next person your age looking for the same game.</div>
         <div class="qm-grid" id="qmGrid">
           <button type="button" data-qm="1+0"><b>Bullet</b><span>1 min</span></button>
           <button type="button" data-qm="3+2"><b>Blitz</b><span>3 + 2</span></button>
@@ -335,7 +335,7 @@
       c.once("data", (msg) => {
         const refuse = () => { c.send({ t: "busy" }); setTimeout(() => c.close(), 200); };
         if (!msg || msg.t !== "hello") return c.close();
-        if (onStart && msg.tc !== tc) return refuse(); // quick match: same time control only
+        if (onStart && (msg.tc !== tc || msg.ageGroup !== myAgeGroup())) return refuse(); // quick match: same time control and age group only
         if (isBlockedName(msg.name) || msg.name === profile.name) return refuse();
         if (G && G.status === "playing" && conn && conn.open) return refuse();
         if (G && G.status === "playing" && msg.name === G.opp.name) {
@@ -374,9 +374,11 @@
       $("nameInput")?.focus();
       return;
     }
+    const group = myAgeGroup();
+    if (!group) { showSetup(); return; }
     leave();
-    qm = { tc, slot: 0, started: Date.now(), timer: setInterval(searchTick, 500) };
-    $("searchTitle").textContent = `Finding a ${TC_LABEL[tc]} opponent…`;
+    qm = { tc, group, slot: 0, started: Date.now(), timer: setInterval(searchTick, 500) };
+    $("searchTitle").textContent = `Finding a ${TC_LABEL[tc]} opponent (ages ${AGE_GROUPS.find((g) => g.id === group).label})…`;
     $("searchStatus").textContent = "Searching";
     searchTick();
     show("search");
@@ -389,7 +391,8 @@
     $("searchTime").textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   }
 
-  const spotId = () => `${PEER_PREFIX}qm-${qm.tc.replace("+", "-")}-${qm.slot}`;
+  // Each age group has its own waiting spots, so players only meet others their age
+  const spotId = () => `${PEER_PREFIX}qm-${qm.group}-${qm.tc.replace("+", "-")}-${qm.slot}`;
 
   function resetPeer() {
     if (conn) { conn.close(); conn = null; }
@@ -438,7 +441,7 @@
       const c = p.connect(target, { reliable: true });
       c.on("open", () => {
         wire(c);
-        send({ t: "hello", name: profile.name, elo: Math.round(profile.elo), games: profile.games, tc: mine.tc });
+        send({ t: "hello", name: profile.name, elo: Math.round(profile.elo), games: profile.games, tc: mine.tc, ageGroup: mine.group });
       });
       // Started (onMessage "start"), busy, or no answer at all: try the next spot
       c.on("data", (msg) => {

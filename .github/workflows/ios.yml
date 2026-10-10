@@ -4,9 +4,14 @@
 # Once these repository secrets exist, it also signs the app and uploads it
 # to App Store Connect (TestFlight, then App Store review):
 #   APPLE_TEAM_ID           10-character Team ID from developer.apple.com
-#   APPSTORE_KEY_ID         App Store Connect API key ID
+#   APPSTORE_KEY_ID         App Store Connect API key ID (App Manager access)
 #   APPSTORE_ISSUER_ID      App Store Connect API issuer ID
 #   APPSTORE_P8_BASE64      the downloaded AuthKey_XXXX.p8, base64-encoded
+#   SIGNING_P12_BASE64      Apple Distribution certificate + private key (.p12)
+#   SIGNING_P12_PASSWORD    password for that .p12
+#   APPSTORE_PROFILE_BASE64 the "Elo Ladder App Store" provisioning profile
+# App Store builds sign manually with that certificate and profile, because
+# an App Manager key isn't allowed to use Apple's cloud distribution signing.
 #
 # Run it from the Actions tab ("Run workflow"), or push a tag like ios-v1.
 #
@@ -14,8 +19,6 @@
 # the developer account (Devices), attaches it to a GitHub release named
 # phone-build-N, and prints the itms-services install link. Only registered
 # phones can install it (they need Settings > Privacy & Security > Developer Mode on).
-# Development signing works with an App Manager API key; ad hoc (distribution)
-# cloud signing would need an Admin key.
 
 name: iOS app
 
@@ -90,31 +93,70 @@ jobs:
           APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
           APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
           APPSTORE_P8_BASE64: ${{ secrets.APPSTORE_P8_BASE64 }}
+          SIGNING_P12_BASE64: ${{ secrets.SIGNING_P12_BASE64 }}
+          SIGNING_P12_PASSWORD: ${{ secrets.SIGNING_P12_PASSWORD }}
+          APPSTORE_PROFILE_BASE64: ${{ secrets.APPSTORE_PROFILE_BASE64 }}
           TARGET: ${{ inputs.target || 'app-store' }}
           GH_TOKEN: ${{ github.token }}
         run: |
-          if [ "$TARGET" = "phone" ]; then METHOD=debugging; DEST=export; else METHOD=app-store-connect; DEST=upload; fi
+          set -o pipefail
           KEY="$RUNNER_TEMP/AuthKey_$APPSTORE_KEY_ID.p8"
           echo "$APPSTORE_P8_BASE64" | base64 --decode > "$KEY"
           AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$KEY" -authenticationKeyID "$APPSTORE_KEY_ID" -authenticationKeyIssuerID "$APPSTORE_ISSUER_ID")
-          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
-            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/App.xcarchive" archive \
-            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CODE_SIGN_STYLE=Automatic TARGETED_DEVICE_FAMILY=1 \
-            MARKETING_VERSION="$APP_VERSION" CURRENT_PROJECT_VERSION="${{ github.run_number }}" "${AUTH[@]}" | tail -n 25
+          VERSIONS=(MARKETING_VERSION="$APP_VERSION" CURRENT_PROJECT_VERSION="${{ github.run_number }}" TARGETED_DEVICE_FAMILY=1)
+
+          if [ "$TARGET" = "phone" ]; then
+            # Development signing, managed by Xcode through the API key
+            xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+              -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/App.xcarchive" archive \
+              DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CODE_SIGN_STYLE=Automatic "${VERSIONS[@]}" "${AUTH[@]}" | tail -n 25
+            SIGNING="<key>method</key><string>debugging</string><key>destination</key><string>export</string><key>signingStyle</key><string>automatic</string>"
+          else
+            # Manual distribution signing with our own certificate and profile
+            if [ -z "$SIGNING_P12_BASE64" ] || [ -z "$APPSTORE_PROFILE_BASE64" ]; then
+              echo "::error::Missing SIGNING_P12_BASE64 / APPSTORE_PROFILE_BASE64 secrets"; exit 1
+            fi
+            KC="$RUNNER_TEMP/signing.keychain-db"; KCPW="$(uuidgen)"
+            security create-keychain -p "$KCPW" "$KC"
+            security set-keychain-settings -lut 21600 "$KC"
+            security unlock-keychain -p "$KCPW" "$KC"
+            echo "$SIGNING_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/dist.p12"
+            security import "$RUNNER_TEMP/dist.p12" -P "$SIGNING_P12_PASSWORD" -A -t cert -f pkcs12 -k "$KC"
+            rm -f "$RUNNER_TEMP/dist.p12"
+            security set-key-partition-list -S apple-tool:,apple: -k "$KCPW" "$KC" > /dev/null
+            security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+            PROFILE="$RUNNER_TEMP/appstore.mobileprovision"
+            echo "$APPSTORE_PROFILE_BASE64" | base64 --decode > "$PROFILE"
+            security cms -D -i "$PROFILE" > "$RUNNER_TEMP/profile.plist"
+            UUID=$(plutil -extract UUID raw "$RUNNER_TEMP/profile.plist")
+            PNAME=$(plutil -extract Name raw "$RUNNER_TEMP/profile.plist")
+            for DIR in "$HOME/Library/MobileDevice/Provisioning Profiles" "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"; do
+              mkdir -p "$DIR"; cp "$PROFILE" "$DIR/$UUID.mobileprovision"
+            done
+            # Manual signing for the App target only (Swift packages stay unsigned)
+            PBX=ios/App/App.xcodeproj/project.pbxproj
+            sed -i '' -E '/CODE_SIGN_STYLE|CODE_SIGN_IDENTITY|DEVELOPMENT_TEAM|PROVISIONING_PROFILE/d' "$PBX"
+            sed -i '' -E "s|(PRODUCT_BUNDLE_IDENTIFIER = io\.github\.kaceiam\.eloladder;)|\1 CODE_SIGN_STYLE = Manual; DEVELOPMENT_TEAM = $APPLE_TEAM_ID; PROVISIONING_PROFILE_SPECIFIER = \"$PNAME\"; CODE_SIGN_IDENTITY = \"Apple Distribution\";|" "$PBX"
+            [ "$(grep -c 'CODE_SIGN_STYLE = Manual' "$PBX")" -ge 1 ] || { echo "::error::Couldn't set manual signing"; exit 1; }
+            xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+              -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/App.xcarchive" archive \
+              "${VERSIONS[@]}" | tail -n 25
+            SIGNING="<key>method</key><string>app-store-connect</string><key>destination</key><string>upload</string><key>signingStyle</key><string>manual</string><key>signingCertificate</key><string>Apple Distribution</string><key>provisioningProfiles</key><dict><key>io.github.kaceiam.eloladder</key><string>$PNAME</string></dict>"
+          fi
+
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0"><dict>
-            <key>method</key><string>$METHOD</string>
-            <key>destination</key><string>$DEST</string>
+            $SIGNING
             <key>teamID</key><string>$APPLE_TEAM_ID</string>
-            <key>signingStyle</key><string>automatic</string>
             <key>manageAppVersionAndBuildNumber</key><false/>
           </dict></plist>
           EOF
           xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/App.xcarchive" \
             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/export" "${AUTH[@]}"
           rm -f "$KEY"
+          [ -n "$KC" ] && security delete-keychain "$KC"
           if [ "$TARGET" != "phone" ]; then
             echo "Uploaded Elo Ladder $APP_VERSION (build ${{ github.run_number }}) to App Store Connect."
             exit 0

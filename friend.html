@@ -277,6 +277,18 @@
 
   function send(msg) { if (conn && conn.open) conn.send(msg); }
 
+  // The other player's app could be modified, so everything it says about itself
+  // is checked: the name must pass the same name rules, and the rating and
+  // game count are kept in a sensible range.
+  function safePlayer(p) {
+    if (!p || typeof p !== "object") return null;
+    const name = String(p.name || "").trim().slice(0, 20);
+    if (!EloNames.checkName(name).ok || name === profile.name) return null;
+    const elo = Math.round(Math.max(100, Math.min(3000, +p.elo || 1200)));
+    const games = Math.max(0, Math.min(100000, Math.floor(+p.games || 0)));
+    return { name, elo, games };
+  }
+
   function wire(c) {
     conn = c;
     c.on("data", onMessage);
@@ -350,7 +362,8 @@
         if (G) return refuse();
         wire(c);
         const hostColor = color === "random" ? (Math.random() < 0.5 ? "w" : "b") : color;
-        const opp = { name: String(msg.name).slice(0, 20), elo: +msg.elo || 1200, games: +msg.games || 0 };
+        const opp = safePlayer(msg);
+        if (!opp) { conn = null; return refuse(); }
         send({ t: "start", tc, hostColor, host: { name: profile.name, elo: Math.round(profile.elo), games: profile.games } });
         if (onStart) onStart();
         startGame(tc, hostColor, opp);
@@ -449,7 +462,9 @@
       // Started (onMessage "start"), busy, or no answer at all: try the next spot
       c.on("data", (msg) => {
         answered = true;
-        if (msg && msg.t === "start") stopSearch();
+        // Only stop searching if the game really started (a bad "start" is ignored)
+        // (checked after the game code has handled the message, which runs next)
+        if (msg && msg.t === "start") setTimeout(() => { if (G && G.status === "playing") stopSearch(); else next(); }, 0);
         if (msg && msg.t === "busy") next();
       });
       setTimeout(() => { if (!answered) next(); }, 6000);
@@ -568,14 +583,22 @@
         leave();
         return;
       }
-      if (!G || G.status !== "playing") startGame(msg.tc, msg.hostColor, msg.host);
+      // Never trust the other app: check the time control, color and player before starting
+      const host = safePlayer(msg.host);
+      if (!host || !Object.hasOwn(TIME_CONTROLS, String(msg.tc)) || !["w", "b"].includes(msg.hostColor)) return;
+      if (!G || G.status !== "playing") startGame(msg.tc, msg.hostColor, host);
       return;
     }
     if (msg.t === "sync" && role === "guest") {
-      // Rejoining a game after a reload
-      startGame(msg.game.tc, msg.game.hostColor, msg.game.host);
-      if (msg.game.pgn) G.chess.load_pgn(msg.game.pgn);
-      G.clocks = msg.game.clocks;
+      // Rejoining a game after a reload. Only accepted when this page has no game
+      // running, so the host can't swap the board in the middle of a game.
+      if (G && G.status === "playing") return;
+      const game = msg.game || {}, host = safePlayer(game.host);
+      if (!host || !Object.hasOwn(TIME_CONTROLS, String(game.tc)) || !["w", "b"].includes(game.hostColor)) return;
+      startGame(game.tc, game.hostColor, host);
+      if (game.pgn && !G.chess.load_pgn(String(game.pgn).slice(0, 20000))) G.chess.reset();
+      const ms = (v) => Math.max(0, Math.min(G.base || 0, +v || 0));
+      G.clocks = { w: ms(game.clocks && game.clocks.w), b: ms(game.clocks && game.clocks.b) };
       G.turnStart = msg.game.running ? Date.now() : null;
       G.ready = { me: true, opp: true }; // rejoining a game already under way
       renderGame();
@@ -588,7 +611,11 @@
         if (G.status !== "playing" || G.chess.turn() !== oppColor || !bothReady()) return;
         const mv = G.chess.move({ from: msg.from, to: msg.to, promotion: msg.promotion || "q" });
         if (!mv) return;
-        if (G.base && typeof msg.left === "number") G.clocks[oppColor] = msg.left;
+        // Their app reports its own clock; never let it claim more time than it really had
+        if (G.base && typeof msg.left === "number") {
+          const most = G.turnStart ? G.clocks[oppColor] - (Date.now() - G.turnStart) + G.inc + 3000 : G.clocks[oppColor] + G.inc;
+          G.clocks[oppColor] = Math.max(0, Math.min(msg.left, most));
+        }
         G.turnStart = Date.now();
         if (G.drawOffer === "opp") G.drawOffer = null;
         selected = null;

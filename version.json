@@ -1,10 +1,9 @@
 {
-  "version": 12,
-  "title": "No chat, just Ready",
+  "version": 13,
+  "title": "Security fixes",
   "notes": [
-    "🔇 Chat is gone: players can't send each other messages at all.",
-    "✅ Before each game, both players tap Ready. The game starts when you're both set.",
-    "🚩 Report and 🔇 Block still work in every game."
+    "🛡 Online games are protected against hacked apps: fake positions, fake ratings, fake names and clock cheats are all ignored.",
+    "⚡ Fixed quick match games sometimes disconnecting right after they started."
   ],
   "countdown": 30,
   "date": "2026-10-10"

@@ -58,7 +58,7 @@ Free. No account. No ads. No tracking.
 ## Keywords (100 max, comma-separated, no spaces)
 chess,elo,stockfish,puzzles,tactics,openings,endgame,lessons,ranked,tournament,bots,board,checkmate
 
-## What's New (version 1.12.0)
+## What's New (version 1.13.0)
 First release on the App Store: bots, ranked play, quick match by age group, Sunday Cup tournaments, 280 lessons, the Elo Test and unlockable boards. (Apple only shows "What's New" from the second version on.)
 
 ## Screenshots

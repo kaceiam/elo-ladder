@@ -604,7 +604,7 @@ const actions = {
 
   quick(body, me) {
     if (activeGameOf(me)) fail(409, "You already have a game going");
-    if (!TIME_CONTROLS[body.tc]) fail(400, "Unknown time control");
+    if (!Object.hasOwn(TIME_CONTROLS, String(body.tc))) fail(400, "Unknown time control");
     queue.set(me, { tc: body.tc, since: Date.now() });
     sendQueue(me);
     matchmake();
@@ -619,7 +619,7 @@ const actions = {
 
   seek(body, me) {
     if (activeGameOf(me)) fail(409, "You already have a game going");
-    if (!TIME_CONTROLS[body.tc]) fail(400, "Unknown time control");
+    if (!Object.hasOwn(TIME_CONTROLS, String(body.tc))) fail(400, "Unknown time control");
     leaveQueue(me);
     const color = ["w", "b", "random"].includes(body.color) ? body.color : "random";
     const g = createGame(me, body.tc, color);
@@ -779,7 +779,7 @@ const actions = {
     const them = findPlayer(body.name);
     if (!them || !friendsOf(me).includes(them.name)) fail(400, "You can only challenge friends");
     if (isBlocked(them.name, me) || isBlocked(me, them.name)) fail(403, "You can't challenge that player");
-    if (!TIME_CONTROLS[body.tc]) fail(400, "Unknown time control");
+    if (!Object.hasOwn(TIME_CONTROLS, String(body.tc))) fail(400, "Unknown time control");
     if (!online(them.name)) fail(409, `${them.name} isn't online`);
     if (activeGameOf(them.name)) fail(409, `${them.name} is in a game right now`);
     if (activeGameOf(me)) fail(409, "Finish or cancel your current game first");

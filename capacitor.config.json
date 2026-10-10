@@ -3,6 +3,9 @@
   "appName": "Elo Ladder",
   "webDir": "www",
   "backgroundColor": "#0b0d18",
+  "server": {
+    "allowNavigation": ["kaceiam.github.io"]
+  },
   "ios": {
     "contentInset": "automatic",
     "backgroundColor": "#0b0d18",

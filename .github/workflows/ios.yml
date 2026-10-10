@@ -59,6 +59,8 @@ jobs:
         run: npm ci
 
       - name: Prepare the web app
+        env:
+          LIVE_UPDATES: ${{ inputs.target == 'phone' && '1' || '' }}
         run: npm run build:web
 
       - name: Create the iOS project

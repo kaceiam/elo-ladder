@@ -23,4 +23,13 @@ for (const item of INCLUDE) {
   fs.cpSync(src, path.join(OUT, item), { recursive: true });
   files += fs.statSync(src).isDirectory() ? fs.readdirSync(src, { recursive: true }).length : 1;
 }
+// LIVE_UPDATES=1 (test builds for our own phones): the app switches to the
+// website copy whenever the website is newer. Off for App Store builds.
+if (process.env.LIVE_UPDATES === "1") {
+  const f = path.join(OUT, "update.js");
+  const src = fs.readFileSync(f, "utf8");
+  if (!src.includes("const LIVE_UPDATES = false;")) throw new Error("LIVE_UPDATES switch not found in update.js");
+  fs.writeFileSync(f, src.replace("const LIVE_UPDATES = false;", "const LIVE_UPDATES = true;"));
+  console.log("live updates: on");
+}
 console.log(`www/ ready: ${files} files`);

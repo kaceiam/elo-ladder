@@ -25,6 +25,46 @@
   };
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
+  // ---------- live updates inside the iPhone app ----------
+  // The app's built-in copy can't change, so (in builds made with live updates
+  // on) it checks the website on start and, when the website is newer, switches
+  // to it, bringing the player's saved progress along once. From then on the
+  // website copy updates itself like any web page. Offline, the built-in copy runs.
+  const LIVE_UPDATES = false; // set to true by tools/build-www.js for live-update builds
+  const LIVE = "https://kaceiam.github.io/elo-ladder/";
+  const IMPORTED_KEY = "elo-app-imported";
+
+  // Progress handed over from the built-in copy (first switch only)
+  if (location.hash.startsWith("#import=")) {
+    try {
+      if (!store.get(IMPORTED_KEY)) {
+        const data = JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(location.hash.slice(8))))));
+        for (const [k, v] of Object.entries(data)) if (k.startsWith("elo") && typeof v === "string") store.set(k, v);
+      }
+      store.set(IMPORTED_KEY, String(Date.now()));
+    } catch {}
+    history.replaceState(null, "", location.pathname + location.search);
+  }
+
+  const native = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  const builtIn = native && location.origin !== new URL(LIVE).origin;
+
+  async function goLiveIfNewer() {
+    try {
+      const get = (u) => fetch(u, { cache: "no-store" }).then((r) => r.json());
+      const [here, there] = await Promise.all([get("version.json"), get(`${LIVE}version.json?t=${Date.now()}`)]);
+      if (!(there.version > here.version)) return;
+      const data = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith("elo")) data[k] = localStorage.getItem(k);
+      }
+      const page = location.pathname.split("/").pop() || "index.html";
+      const packed = encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(data)))));
+      location.replace(`${LIVE}${page}${location.search}#import=${packed}`);
+    } catch { /* offline: keep the built-in copy */ }
+  }
+
   async function fetchVersion() {
     try {
       const res = await fetch(`version.json?t=${Date.now()}`, { cache: "no-store" });
@@ -130,8 +170,12 @@
     }
   }
 
-  // Inside the App Store app the files are built in; updates come through the App Store
-  if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) return;
+  // Inside the app the files are built in: updates come through the App Store,
+  // or (live-update builds) by switching to the website copy when it's newer
+  if (builtIn) {
+    if (LIVE_UPDATES) goLiveIfNewer();
+    return;
+  }
 
   setInterval(check, POLL_MS);
   setInterval(renderBar, 250);

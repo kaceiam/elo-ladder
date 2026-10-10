@@ -405,3 +405,5 @@ body.app { background: radial-gradient(1000px 600px at 10% -10%, #24205a 0%, tra
 .qm-grid button span { font-size: 13px; opacity: 0.8; }
 .qm-spinner { font-size: 56px; margin: 10px auto; width: 72px; animation: qm-spin 1.4s ease-in-out infinite; }
 @keyframes qm-spin { 0%, 100% { transform: translateY(0) rotate(-8deg); } 50% { transform: translateY(-10px) rotate(8deg); } }
+.qm-cup { display: flex; justify-content: center; align-items: center; gap: 6px; margin-top: 8px; padding: 10px; text-decoration: none; }
+.qm-cup span { opacity: 0.8; font-size: 13px; }

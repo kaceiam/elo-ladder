@@ -10,10 +10,12 @@
 #
 # Run it from the Actions tab ("Run workflow"), or push a tag like ios-v1.
 #
-# "target: phone" instead makes an ad hoc build for the iPhones registered in
+# "target: phone" instead makes a development-signed build for the iPhones registered in
 # the developer account (Devices), attaches it to a GitHub release named
 # phone-build-N, and prints the itms-services install link. Only registered
-# phones can install it.
+# phones can install it (they need Settings > Privacy & Security > Developer Mode on).
+# Development signing works with an App Manager API key; ad hoc (distribution)
+# cloud signing would need an Admin key.
 
 name: iOS app
 
@@ -91,7 +93,7 @@ jobs:
           TARGET: ${{ inputs.target || 'app-store' }}
           GH_TOKEN: ${{ github.token }}
         run: |
-          if [ "$TARGET" = "phone" ]; then METHOD=release-testing; DEST=export; else METHOD=app-store-connect; DEST=upload; fi
+          if [ "$TARGET" = "phone" ]; then METHOD=debugging; DEST=export; else METHOD=app-store-connect; DEST=upload; fi
           KEY="$RUNNER_TEMP/AuthKey_$APPSTORE_KEY_ID.p8"
           echo "$APPSTORE_P8_BASE64" | base64 --decode > "$KEY"
           AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$KEY" -authenticationKeyID "$APPSTORE_KEY_ID" -authenticationKeyIssuerID "$APPSTORE_ISSUER_ID")

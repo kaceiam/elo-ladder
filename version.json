@@ -1,11 +1,10 @@
 {
-  "version": 8,
-  "title": "Safer chat: report, block and a word filter",
+  "version": 9,
+  "title": "Quick match: play anyone, any speed",
   "notes": [
-    "🚩 Report: tap Report in any game to report a rude player.",
-    "🔇 Block: blocked players can't chat with you, join your invites, challenge you, friend you or be matched with you. Unblock any time.",
-    "Chat now filters out swear words and slurs automatically.",
-    "This keeps Elo Ladder friendly for everyone — and gets it ready for the App Store."
+    "⚡ Quick match on Online Play: pick Bullet (1 min or 2 + 1), Blitz (3 + 2 or 5 min) or Rapid (10 or 15 + 10) and get matched with the next player looking for the same game.",
+    "Works anywhere, on the website and in the app.",
+    "🚩 Reports now go privately by email and are never posted publicly."
   ],
   "countdown": 60,
   "date": "2026-10-10"

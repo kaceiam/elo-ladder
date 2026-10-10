@@ -21,7 +21,7 @@
     <h1>🌐 Online Play</h1>
     <a class="btn primary" href="online.html" id="lobbyLink" hidden>Online lobby →</a>
   </div>
-  <p class="dim" style="margin: -8px 0 0">Invite a friend with a link and play from anywhere.</p>
+  <p class="dim" style="margin: -8px 0 0">Quick match against anyone, or invite a friend with a link.</p>
 
   <!-- Start: name + create an invite -->
   <div id="setup" hidden>
@@ -42,7 +42,18 @@
         <div class="err" id="nameErr"></div>
       </section>
       <section>
-        <h2>Invite a friend anywhere</h2>
+        <h2>⚡ Quick match</h2>
+        <div class="dim" style="margin-bottom: 8px">Pick a time control and play the next person looking for a game.</div>
+        <div class="qm-grid" id="qmGrid">
+          <button type="button" data-qm="1+0"><b>Bullet</b><span>1 min</span></button>
+          <button type="button" data-qm="2+1"><b>Bullet</b><span>2 + 1</span></button>
+          <button type="button" data-qm="3+2"><b>Blitz</b><span>3 + 2</span></button>
+          <button type="button" data-qm="5+0"><b>Blitz</b><span>5 min</span></button>
+          <button type="button" data-qm="10+0"><b>Rapid</b><span>10 min</span></button>
+          <button type="button" data-qm="15+10"><b>Rapid</b><span>15 + 10</span></button>
+        </div>
+        <div class="err" id="qmErr"></div>
+        <h2 style="margin-top: 18px">Invite a friend anywhere</h2>
         <div class="row">
           <select id="tc" style="flex: 0 0 auto">
             <option value="3+2">3 + 2</option>
@@ -64,6 +75,15 @@
       </section>
     </div>
   </div>
+
+  <!-- Quick match: searching -->
+  <section id="search" hidden style="text-align: center">
+    <h2 id="searchTitle">Finding an opponent…</h2>
+    <div class="qm-spinner">♞</div>
+    <p><b class="thinking" id="searchStatus">Searching</b></p>
+    <p class="dim" id="searchTime">0:00</p>
+    <button id="cancelSearch">Cancel</button>
+  </section>
 
   <!-- Host: waiting for the friend -->
   <section id="invite" hidden>
@@ -157,8 +177,8 @@
 
   const PROFILE_KEY = "elo-friend-profile";
   const PEER_PREFIX = "eloladder-";
-  const TIME_CONTROLS = { "3+2": [3, 2], "5+0": [5, 0], "10+0": [10, 0], "15+10": [15, 10], none: [0, 0] };
-  const TC_LABEL = { "3+2": "3 + 2", "5+0": "5 min", "10+0": "10 min", "15+10": "15 + 10", none: "No clock" };
+  const TIME_CONTROLS = { "1+0": [1, 0], "2+1": [2, 1], "3+2": [3, 2], "5+0": [5, 0], "10+0": [10, 0], "15+10": [15, 10], none: [0, 0] };
+  const TC_LABEL = { "1+0": "1 min bullet", "2+1": "2 + 1 bullet", "3+2": "3 + 2", "5+0": "5 min", "10+0": "10 min", "15+10": "15 + 10", none: "No clock" };
   const ABANDON_MS = 60_000;
 
   const $ = (id) => document.getElementById(id);
@@ -175,7 +195,7 @@
   let selected = null, lostAt = null;
 
   function show(id) {
-    for (const s of ["setup", "invite", "join", "play"]) $(s).hidden = s !== id;
+    for (const s of ["setup", "search", "invite", "join", "play"]) $(s).hidden = s !== id;
   }
 
   // ---------- profile ----------
@@ -297,29 +317,7 @@
       $("shareLink").hidden = !navigator.share;
       show("invite");
     });
-    peer.on("connection", (c) => {
-      // One opponent per invite; a returning opponent (page reload) can rejoin
-      c.on("open", () => {
-        c.once("data", (msg) => {
-          if (!msg || msg.t !== "hello") return c.close();
-          if (isBlockedName(msg.name)) { c.send({ t: "busy" }); return setTimeout(() => c.close(), 200); }
-          if (G && G.status === "playing" && conn && conn.open) { c.send({ t: "busy" }); return setTimeout(() => c.close(), 200); }
-          if (G && G.status === "playing" && msg.name === G.opp.name) {
-            wire(c);
-            lostAt = null;
-            send({ t: "sync", game: snapshot() });
-            renderGame();
-            return;
-          }
-          if (G) { c.send({ t: "busy" }); return setTimeout(() => c.close(), 200); }
-          wire(c);
-          const hostColor = color === "random" ? (Math.random() < 0.5 ? "w" : "b") : color;
-          const opp = { name: String(msg.name).slice(0, 20), elo: +msg.elo || 1200, games: +msg.games || 0 };
-          send({ t: "start", tc, hostColor, host: { name: profile.name, elo: Math.round(profile.elo), games: profile.games } });
-          startGame(tc, hostColor, opp);
-        });
-      });
-    });
+    peer.on("connection", (c) => acceptOpponent(c, tc, color));
     peer.on("error", (err) => {
       $("create").disabled = false;
       if (err.type === "unavailable-id") return createInvite(); // code clash: pick another
@@ -328,7 +326,148 @@
     });
   }
 
+  // The host's side of a new connection (friend invite or quick match).
+  // One opponent per game; a returning opponent (page reload) can rejoin.
+  function acceptOpponent(c, tc, color, onStart) {
+    c.on("open", () => {
+      c.once("data", (msg) => {
+        const refuse = () => { c.send({ t: "busy" }); setTimeout(() => c.close(), 200); };
+        if (!msg || msg.t !== "hello") return c.close();
+        if (onStart && msg.tc !== tc) return refuse(); // quick match: same time control only
+        if (isBlockedName(msg.name) || msg.name === profile.name) return refuse();
+        if (G && G.status === "playing" && conn && conn.open) return refuse();
+        if (G && G.status === "playing" && msg.name === G.opp.name) {
+          wire(c);
+          lostAt = null;
+          send({ t: "sync", game: snapshot() });
+          renderGame();
+          return;
+        }
+        if (G) return refuse();
+        wire(c);
+        const hostColor = color === "random" ? (Math.random() < 0.5 ? "w" : "b") : color;
+        const opp = { name: String(msg.name).slice(0, 20), elo: +msg.elo || 1200, games: +msg.games || 0 };
+        send({ t: "start", tc, hostColor, host: { name: profile.name, elo: Math.round(profile.elo), games: profile.games } });
+        if (onStart) onStart();
+        startGame(tc, hostColor, opp);
+      });
+    });
+  }
+
   $("create").addEventListener("click", createInvite);
+
+  // ---------- quick match ----------
+  // No server: players meet at well-known waiting spots on the PeerJS broker,
+  // one set per time control. Claim a spot and wait; if it's taken, someone is
+  // already waiting there, so connect to them. Once matched, the waiting player
+  // frees the spot (the game connection stays open).
+
+  const QM_SLOTS = 3;
+  let qm = null; // { tc, slot, started, timer }
+
+  function quickMatch(tc) {
+    $("qmErr").textContent = "";
+    if (!nameLocked()) {
+      $("qmErr").textContent = "Pick your name first.";
+      $("nameInput")?.focus();
+      return;
+    }
+    leave();
+    qm = { tc, slot: 0, started: Date.now(), timer: setInterval(searchTick, 500) };
+    $("searchTitle").textContent = `Finding a ${TC_LABEL[tc]} opponent…`;
+    $("searchStatus").textContent = "Searching";
+    searchTick();
+    show("search");
+    claimSpot();
+  }
+
+  function searchTick() {
+    if (!qm) return;
+    const s = Math.floor((Date.now() - qm.started) / 1000);
+    $("searchTime").textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  }
+
+  const spotId = () => `${PEER_PREFIX}qm-${qm.tc.replace("+", "-")}-${qm.slot}`;
+
+  function resetPeer() {
+    if (conn) { conn.close(); conn = null; }
+    if (peer) peer.destroy();
+    peer = null;
+  }
+
+  // Try to be the one waiting at this spot
+  function claimSpot() {
+    if (!qm) return;
+    resetPeer();
+    role = "host";
+    const mine = qm;
+    const p = peer = new Peer(spotId());
+    p.on("open", () => {
+      if (qm !== mine) return;
+      $("searchStatus").textContent = "Waiting for an opponent";
+    });
+    p.on("connection", (c) => acceptOpponent(c, mine.tc, "random", () => {
+      // Matched: free the spot for the next players, keep this game's connection
+      stopSearch();
+      setTimeout(() => { try { p.disconnect(); } catch {} }, 1500);
+    }));
+    p.on("error", (err) => {
+      if (qm !== mine || peer !== p) return;
+      if (err.type === "unavailable-id") return joinSpot(); // someone is waiting here: play them
+      if (["network", "server-error", "socket-error", "socket-closed"].includes(err.type)) return searchFailed(err.type);
+    });
+  }
+
+  // Someone is waiting at this spot: connect to them
+  function joinSpot() {
+    if (!qm) return;
+    resetPeer();
+    role = "guest";
+    const mine = qm, target = spotId();
+    const p = peer = new Peer();
+    let answered = false;
+    const next = () => {
+      if (qm !== mine || peer !== p) return;
+      qm.slot = (qm.slot + 1) % QM_SLOTS;
+      setTimeout(claimSpot, 300 + Math.random() * 700);
+    };
+    p.on("open", () => {
+      $("searchStatus").textContent = "Found someone, connecting";
+      const c = p.connect(target, { reliable: true });
+      c.on("open", () => {
+        wire(c);
+        send({ t: "hello", name: profile.name, elo: Math.round(profile.elo), games: profile.games, tc: mine.tc });
+      });
+      // Started (onMessage "start"), busy, or no answer at all: try the next spot
+      c.on("data", (msg) => {
+        answered = true;
+        if (msg && msg.t === "start") stopSearch();
+        if (msg && msg.t === "busy") next();
+      });
+      setTimeout(() => { if (!answered) next(); }, 6000);
+    });
+    p.on("error", (err) => {
+      if (qm !== mine || peer !== p) return;
+      if (err.type === "peer-unavailable") return next(); // they just left
+      if (["network", "server-error", "socket-error", "socket-closed"].includes(err.type)) return searchFailed(err.type);
+    });
+  }
+
+  function stopSearch() {
+    if (!qm) return;
+    clearInterval(qm.timer);
+    qm = null;
+  }
+
+  function searchFailed(type) {
+    stopSearch();
+    resetPeer();
+    $("qmErr").textContent = `Couldn't search for a match (${type}). Check your internet and try again.`;
+    show("setup");
+  }
+
+  document.querySelectorAll("[data-qm]").forEach((b) => b.addEventListener("click", () => quickMatch(b.dataset.qm)));
+  $("cancelSearch").addEventListener("click", () => { stopSearch(); leave(); show("setup"); });
   $("setRating").addEventListener("click", () => showRatingPicker(profile.elo, (elo) => { profile.elo = elo; saveProfile(); renderProfile(); }));
   $("copyLink").addEventListener("click", () => {
     $("inviteLink").select();
@@ -677,6 +816,7 @@
   });
 
   function leave() {
+    stopSearch();
     if (conn) conn.close();
     if (peer) peer.destroy();
     conn = peer = G = null;

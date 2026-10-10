@@ -46,13 +46,14 @@
         <div class="dim" style="margin-bottom: 8px">Pick a time control and play the next person looking for a game.</div>
         <div class="qm-grid" id="qmGrid">
           <button type="button" data-qm="1+0"><b>Bullet</b><span>1 min</span></button>
-          <button type="button" data-qm="2+1"><b>Bullet</b><span>2 + 1</span></button>
           <button type="button" data-qm="3+2"><b>Blitz</b><span>3 + 2</span></button>
-          <button type="button" data-qm="5+0"><b>Blitz</b><span>5 min</span></button>
           <button type="button" data-qm="10+0"><b>Rapid</b><span>10 min</span></button>
+          <button type="button" data-qm="30+0"><b>Tournament</b><span>30 min</span></button>
+          <button type="button" data-qm="2+1"><b>Bullet</b><span>2 + 1</span></button>
+          <button type="button" data-qm="5+0"><b>Blitz</b><span>5 min</span></button>
           <button type="button" data-qm="15+10"><b>Rapid</b><span>15 + 10</span></button>
+          <button type="button" data-qm="60+0"><b>Tournament</b><span>1 hour</span></button>
         </div>
-        <a class="btn qm-cup" href="tournament.html">🏆 <b>Tournament</b> <span>Sunday Cup →</span></a>
         <div class="err" id="qmErr"></div>
         <h2 style="margin-top: 18px">Invite a friend anywhere</h2>
         <div class="row">
@@ -178,8 +179,8 @@
 
   const PROFILE_KEY = "elo-friend-profile";
   const PEER_PREFIX = "eloladder-";
-  const TIME_CONTROLS = { "1+0": [1, 0], "2+1": [2, 1], "3+2": [3, 2], "5+0": [5, 0], "10+0": [10, 0], "15+10": [15, 10], none: [0, 0] };
-  const TC_LABEL = { "1+0": "1 min bullet", "2+1": "2 + 1 bullet", "3+2": "3 + 2", "5+0": "5 min", "10+0": "10 min", "15+10": "15 + 10", none: "No clock" };
+  const TIME_CONTROLS = { "1+0": [1, 0], "2+1": [2, 1], "30+0": [30, 0], "60+0": [60, 0], "3+2": [3, 2], "5+0": [5, 0], "10+0": [10, 0], "15+10": [15, 10], none: [0, 0] };
+  const TC_LABEL = { "1+0": "1 min bullet", "2+1": "2 + 1 bullet", "30+0": "30 min tournament", "60+0": "1 hour tournament", "3+2": "3 + 2", "5+0": "5 min", "10+0": "10 min", "15+10": "15 + 10", none: "No clock" };
   const ABANDON_MS = 60_000;
 
   const $ = (id) => document.getElementById(id);

@@ -399,9 +399,9 @@ body.app { background: radial-gradient(1000px 600px at 10% -10%, #24205a 0%, tra
 .chat-safety button { font-size: 13px; padding: 6px 10px; }
 
 /* Quick match */
-.qm-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.qm-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .qm-grid button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 6px; }
-.qm-grid button b { font-size: 15px; }
+.qm-grid button b { font-size: 13px; }
 .qm-grid button span { font-size: 13px; opacity: 0.8; }
 .qm-spinner { font-size: 56px; margin: 10px auto; width: 72px; animation: qm-spin 1.4s ease-in-out infinite; }
 @keyframes qm-spin { 0%, 100% { transform: translateY(0) rotate(-8deg); } 50% { transform: translateY(-10px) rotate(8deg); } }

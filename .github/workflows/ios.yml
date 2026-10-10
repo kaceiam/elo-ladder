@@ -101,7 +101,7 @@ jobs:
         run: |
           set -o pipefail
           KEY="$RUNNER_TEMP/AuthKey_$APPSTORE_KEY_ID.p8"
-          echo "$APPSTORE_P8_BASE64" | base64 --decode > "$KEY"
+          printf %s "$APPSTORE_P8_BASE64" | tr -d ' \r\n' | base64 --decode > "$KEY"
           AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$KEY" -authenticationKeyID "$APPSTORE_KEY_ID" -authenticationKeyIssuerID "$APPSTORE_ISSUER_ID")
           VERSIONS=(MARKETING_VERSION="$APP_VERSION" CURRENT_PROJECT_VERSION="${{ github.run_number }}" TARGETED_DEVICE_FAMILY=1)
 
@@ -120,13 +120,13 @@ jobs:
             security create-keychain -p "$KCPW" "$KC"
             security set-keychain-settings -lut 21600 "$KC"
             security unlock-keychain -p "$KCPW" "$KC"
-            echo "$SIGNING_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/dist.p12"
-            security import "$RUNNER_TEMP/dist.p12" -P "$SIGNING_P12_PASSWORD" -A -t cert -f pkcs12 -k "$KC"
+            printf %s "$SIGNING_P12_BASE64" | tr -d ' \r\n' | base64 --decode > "$RUNNER_TEMP/dist.p12"
+            security import "$RUNNER_TEMP/dist.p12" -P "$(printf %s "$SIGNING_P12_PASSWORD" | tr -d '\r\n')" -A -t cert -f pkcs12 -k "$KC"
             rm -f "$RUNNER_TEMP/dist.p12"
             security set-key-partition-list -S apple-tool:,apple: -k "$KCPW" "$KC" > /dev/null
             security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
             PROFILE="$RUNNER_TEMP/appstore.mobileprovision"
-            echo "$APPSTORE_PROFILE_BASE64" | base64 --decode > "$PROFILE"
+            printf %s "$APPSTORE_PROFILE_BASE64" | tr -d ' \r\n' | base64 --decode > "$PROFILE"
             security cms -D -i "$PROFILE" > "$RUNNER_TEMP/profile.plist"
             UUID=$(plutil -extract UUID raw "$RUNNER_TEMP/profile.plist")
             PNAME=$(plutil -extract Name raw "$RUNNER_TEMP/profile.plist")

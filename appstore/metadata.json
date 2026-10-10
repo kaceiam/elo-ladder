@@ -1,0 +1,21 @@
+{
+  "bundleId": "io.github.kaceiam.eloladder",
+  "versionString": "1.8.0",
+  "buildNumber": "9",
+  "copyright": "2026 Kyle Spresser",
+  "locale": "en-US",
+  "subtitle": "Climb from beginner to master",
+  "privacyPolicyUrl": "https://kaceiam.github.io/elo-ladder/privacy.html",
+  "supportUrl": "https://github.com/kaceiam/elo-ladder/issues",
+  "marketingUrl": "https://kaceiam.github.io/elo-ladder/",
+  "primaryCategory": "GAMES",
+  "primarySubcategoryOne": "GAMES_BOARD",
+  "secondaryCategory": "EDUCATION",
+  "promotionalText": "New: Sunday Cup tournaments every week, ranked matches from Bronze to Grandmaster, and an Elo Test that finds your real rating in four quick games.",
+  "description": "Climb the Elo ladder — from your very first move to grandmaster-level chess.\n\nPLAY 7 BOTS AT EVERY LEVEL\nSeven opponents powered by Stockfish 18, from Pebble (400) to Oracle (2800). Strong bots use Stockfish's calibrated rating limiter, so a 1600 bot really plays like a 1600.\n\nRANKED MATCHES\nPlay five placement games, then climb Bronze, Silver, Gold, Platinum, Diamond, Master and Grandmaster — with real chess clocks.\n\nSUNDAY CUP — EVERY WEEK\nA 5-round, 32-player tournament every Sunday, with live standings, trophies, and an exclusive Champion gold board for the winner.\n\n280 LESSONS\nSeven training courses with 1,400 exercises you solve right on the board: how the pieces move, checkmate patterns, tactics, 40 openings, middlegames, endgames and a master class. Hints, solutions, and a star for every perfect lesson.\n\nFIND YOUR REAL RATING\nThe Elo Test plays four quick games against a bot that adapts to you, then tells you your rating. Replay every game move by move.\n\nPLAY A FRIEND ANYWHERE\nSend an invite link and play a friend wherever they are, with clocks, chat, draw offers and rematches.\n\nMAKE IT YOURS\nTen board styles — from classic wood to glowing Neon and Galaxy — that you unlock by winning games. Square names on every square help new players learn chess notation.\n\nFree. No account. No ads. No tracking.",
+  "keywords": "chess,elo,stockfish,puzzles,tactics,openings,endgame,lessons,ranked,tournament,bots,board,checkmate",
+  "reviewEmail": "keyacesoftware@gmail.com",
+  "reviewNotes": "Elo Ladder is a chess app. No login is needed — every feature works right away. The chess engine (Stockfish) runs on the device. \"Online Play\" connects two players directly with an invite link (open friend invites on two devices to test). The \"Online lobby\" option only appears when the developer's own game server is reachable, so reviewers won't see it.\n\nUser-generated content (Guideline 1.2): the only user content is in-game chat and player names. Chat and names pass a word filter; every game has Report (online lobby: goes to the admin queue; Play a Friend: opens a private, pre-filled report email to keyacesoftware@gmail.com; reports are never public) and Block (hides the player's messages and stops them joining your invites, challenging, friending or being matched with you). Reports are handled within 24 hours.",
+  "screenshotDisplayType": "APP_IPHONE_67",
+  "screenshots": ["1-home.png", "2-play-bots.png", "3-training.png", "4-ranked.png", "5-board-styles.png", "6-sunday-cup.png"]
+}

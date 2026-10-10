@@ -691,20 +691,9 @@ const actions = {
     return {};
   },
 
-  chat(body, me) {
-    const { g, color } = myGame(me, body.id);
-    const text = cleanText(String(body.text || "").trim().slice(0, 300));
-    if (!color || !text) fail(400, "Nothing to send");
-    const opp = color === "w" ? g.black : g.white;
-    if (isBlocked(opp, me)) fail(403, `${opp} isn't accepting chat from you`);
-    if (Date.now() - (lastChat.get(me) || 0) < 700) fail(429, "Slow down");
-    lastChat.set(me, Date.now());
-    g.chat.push({ from: me, text, at: Date.now() });
-    const p = players[me];
-    (p.chatLog || (p.chatLog = [])).unshift({ at: Date.now(), to: color === "w" ? g.black : g.white, text });
-    p.chatLog = p.chatLog.slice(0, 100);
-    pushGame(g);
-    return {};
+  // Players can't message each other at all
+  chat() {
+    fail(410, "Chat is turned off");
   },
 
   rematch(body, me) {

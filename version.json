@@ -1,11 +1,10 @@
 {
-  "version": 11,
-  "title": "Safer quick match chat",
+  "version": 12,
+  "title": "No chat, just Ready",
   "notes": [
-    "💬 Quick match chat uses quick messages like \"Good luck!\" and \"Good game!\".",
-    "🧒 Players 12 and under can only send quick messages to people they don't know.",
-    "⌨️ Players 13 and up can turn on typed chat for a game. Typed chat is always on with friends you invite.",
-    "🛟 New Support page and About & licenses page (tap your name at the top)."
+    "🔇 Chat is gone: players can't send each other messages at all.",
+    "✅ Before each game, both players tap Ready. The game starts when you're both set.",
+    "🚩 Report and 🔇 Block still work in every game."
   ],
   "countdown": 30,
   "date": "2026-10-10"

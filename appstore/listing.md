@@ -14,8 +14,8 @@ Copy these into App Store Connect (My Apps → Elo Ladder → App Information / 
 - **Age rating** (answer honestly; nothing else in the app is mature):
   - Violence, horror, sexual content, profanity, drugs, alcohol, gambling, contests, medical: **None / No**
   - Unrestricted web access: **No** · Advertising: **No** · In-app purchases: **No**
-  - **Messaging and chat: Yes.** Typed chat only between friends who invited each other by link, and (opt-in, filtered) between strangers aged 13+ in quick match. Players 12 and under can only send preset messages to strangers.
-  - **User-generated content: Yes** (player names and chat), with a word filter, Report and Block.
+  - **Messaging and chat: No.** There is no chat of any kind; players can only tap "Ready" before a game.
+  - **User-generated content: Yes, player names only** (word-filtered, with Report and Block). Nothing else a player creates is shown to others.
   - Parental controls: **No** · Age assurance: **No** (ages are self-reported)
   - ⚠️ Check the rating Apple shows before saving. The app has a "12 and under" group, so if Apple's result is **13+ or higher**, stop and tell Kace's dad before submitting.
 - **Privacy policy URL**: https://kaceiam.github.io/elo-ladder/privacy.html
@@ -48,7 +48,7 @@ FIND YOUR REAL RATING
 The Elo Test plays four quick games against a bot that adapts to you, then tells you your rating. Replay every game move by move.
 
 PLAY A FRIEND ANYWHERE
-Send an invite link and play a friend wherever they are, with clocks, chat, draw offers and rematches.
+Send an invite link and play a friend wherever they are, with clocks, draw offers and rematches.
 
 MAKE IT YOURS
 Ten board styles — from classic wood to glowing Neon and Galaxy — that you unlock by winning games. Square names on every square help new players learn chess notation.
@@ -58,7 +58,7 @@ Free. No account. No ads. No tracking.
 ## Keywords (100 max, comma-separated, no spaces)
 chess,elo,stockfish,puzzles,tactics,openings,endgame,lessons,ranked,tournament,bots,board,checkmate
 
-## What's New (version 1.11.0)
+## What's New (version 1.12.0)
 First release on the App Store: bots, ranked play, quick match by age group, Sunday Cup tournaments, 280 lessons, the Elo Test and unlockable boards. (Apple only shows "What's New" from the second version on.)
 
 ## Screenshots
@@ -68,7 +68,7 @@ Use the six images in `appstore/screenshots/` (1290 × 2796, iPhone 6.7"). Uploa
 ## Review notes (App Review Information → Notes)
 Elo Ladder is a chess app. No login is needed: on first launch you pick a name, a skill level and your age, then every feature works. The chess engine (Stockfish) runs on the device. "Online Play" has Quick match (bullet, blitz, rapid and 30/60-minute games against another player who picked the same time control at the same moment) and invite links for playing a friend (open an invite on two devices to test). The "Online lobby" option only appears when the developer's own game server is reachable, so reviewers won't see it. The Sunday Cup is a single-player tournament against bot opponents.
 
-Child safety and user-generated content (Guideline 1.2): the only user content is player names and in-game chat. Quick match only pairs players in the same self-reported age group (12 and under, 13–17, 18+). In quick matches, players 12 and under can only send preset messages ("Good luck!", "Nice move!", "Good game!"…); typed messages are neither shown nor sent, and a received typed message is dropped. 13–17 quick matches start with presets only and typed chat is opt-in per game. Typed chat is always available between friends who invited each other by link. Names and typed chat pass a word filter; every game has 🚩 Report (opens a private, pre-filled report email to keyacesoftware@gmail.com; reports are never public) and 🔇 Block (hides the player's messages and stops them joining your invites or being matched with you). Reports are handled within 24 hours. Support page: https://kaceiam.github.io/elo-ladder/support.html
+Child safety and user-generated content (Guideline 1.2): there is no chat or messaging of any kind — players can only tap "Ready" before a game, and any other message a modified client sends is ignored. The only user content is player names, which pass a word filter. Quick match only pairs players in the same self-reported age group (12 and under, 13–17, 18+). Every game has 🚩 Report (opens a private, pre-filled report email to keyacesoftware@gmail.com; reports are never public) and 🔇 Block (stops that player joining your invites or being matched with you). Reports are handled within 24 hours. Support page: https://kaceiam.github.io/elo-ladder/support.html
 
 ## Licenses
 - Stockfish chess engine: GPL-3.0 — the app's full source code is public at https://github.com/kaceiam/elo-ladder

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Play Chess with a Friend Online – Elo Ladder</title>
-<meta name="description" content="Invite a friend to a free chess game with one link. Your browsers connect directly, wherever you both are. Clocks, chat, draws and rematches.">
+<meta name="description" content="Invite a friend to a free chess game with one link. Your browsers connect directly, wherever you both are. Clocks, draws and rematches.">
 <link rel="canonical" href="https://kaceiam.github.io/elo-ladder/friend.html">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#14161b">
@@ -139,18 +139,14 @@
           <button class="primary" id="rematch" hidden>Rematch</button>
           <button id="newInvite" hidden>New invite</button>
         </div>
-        <div class="chat" id="chat"></div>
+        <div class="ready-box" id="readyBox" hidden>
+          <button type="button" class="primary" id="readyBtn">✅ Ready</button>
+          <div class="dim small" id="readyText"></div>
+        </div>
         <div class="row chat-safety" id="chatSafety">
           <button type="button" id="reportOpp">🚩 Report</button>
           <button type="button" id="blockOpp">🔇 Block</button>
         </div>
-        <div class="dim small" id="chatNote" hidden></div>
-        <div class="row chat-presets" id="chatPresets" hidden></div>
-        <button type="button" id="chatToggle" hidden></button>
-        <form class="row" id="chatForm">
-          <input type="text" id="chatText" placeholder="Say something…" maxlength="300" autocomplete="off">
-          <button>Send</button>
-        </form>
       </div>
     </div>
   </section>
@@ -196,11 +192,8 @@
   const saveProfile = () => { try { localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); } catch {} };
 
   let peer = null, conn = null, role = null, inviteCode = null;
-  // Quick matches are with strangers: they get quick messages, and typing chat
-  // only for adults (teens can turn it on; 12-and-under never get it).
-  // Invites (someone you already know) keep typing chat.
+  // There is no chat of any kind: players can only tap Ready before a game.
   let quickGroup = null; // age group of the current quick match, null for invites
-  const PRESETS = { hi: "Hi! 👋", gl: "Good luck! 🍀", nm: "Nice move! 👍", wp: "Well played!", gg: "Good game! 🤝", rm: "Rematch?", ty: "Thanks!" };
   let G = null; // current game
   let selected = null, lostAt = null;
 
@@ -539,17 +532,16 @@
       tc, base: mins * 60_000, inc: inc * 1000, myColor, opp, hostColor,
       chess: new Chess(), clocks: { w: mins * 60_000, b: mins * 60_000 }, turnStart: null,
       status: "playing", result: null, reason: null, change: null,
-      drawOffer: null, rematch: { me: false, opp: false }, chat: [],
-      quickGroup, freeChat: !quickGroup || quickGroup === "adults",
+      drawOffer: null, rematch: { me: false, opp: false },
+      quickGroup, ready: { me: false, opp: false },
     };
     selected = null; lostAt = null;
-    $("chatText").value = "";
     show("play");
     renderGame();
   }
 
   function snapshot() {
-    return { tc: G.tc, hostColor: G.hostColor, pgn: G.chess.pgn(), clocks: liveClocks(), running: !!G.turnStart, chat: G.chat,
+    return { tc: G.tc, hostColor: G.hostColor, pgn: G.chess.pgn(), clocks: liveClocks(), running: !!G.turnStart,
       host: { name: profile.name, elo: Math.round(profile.elo), games: profile.games } };
   }
 
@@ -585,7 +577,7 @@
       if (msg.game.pgn) G.chess.load_pgn(msg.game.pgn);
       G.clocks = msg.game.clocks;
       G.turnStart = msg.game.running ? Date.now() : null;
-      G.chat = msg.game.chat || [];
+      G.ready = { me: true, opp: true }; // rejoining a game already under way
       renderGame();
       return;
     }
@@ -593,7 +585,7 @@
     const oppColor = G.myColor === "w" ? "b" : "w";
     switch (msg.t) {
       case "move": {
-        if (G.status !== "playing" || G.chess.turn() !== oppColor) return;
+        if (G.status !== "playing" || G.chess.turn() !== oppColor || !bothReady()) return;
         const mv = G.chess.move({ from: msg.from, to: msg.to, promotion: msg.promotion || "q" });
         if (!mv) return;
         if (G.base && typeof msg.left === "number") G.clocks[oppColor] = msg.left;
@@ -603,9 +595,8 @@
         checkPositionEnd();
         break;
       }
-      case "preset": if (PRESETS[msg.id] && !isBlockedName(G.opp.name)) G.chat.push({ from: G.opp.name, text: PRESETS[msg.id] }); break;
-      // Typing chat is dropped unless it's on for this game (never for 12-and-under quick matches)
-      case "chat": if (G.freeChat && G.quickGroup !== "kids" && !isBlockedName(G.opp.name)) G.chat.push({ from: G.opp.name, text: EloNames.cleanText(String(msg.text).slice(0, 300)) }); break;
+      case "ready": G.ready.opp = true; break;
+      // "chat" and any other message types are ignored: the game has no chat
       case "resign": endGame(G.chess.history().length < 2 ? null : 1, G.chess.history().length < 2 ? "aborted" : "resignation", false); break;
       case "flag": endGame(1, "timeout", false); break;
       case "draw":
@@ -700,7 +691,14 @@
     tick();
 
     const playing = G.status === "playing";
-    if (playing) {
+    const ready = bothReady();
+    $("readyBox").hidden = !playing || ready;
+    $("readyBtn").hidden = G.ready.me;
+    $("readyText").textContent = !G.ready.me ? `Tap Ready when you're set. The game starts when you and ${G.opp.name} are both ready.`
+      : `You're ready. Waiting for ${G.opp.name}…`;
+    if (playing && !ready) {
+      $("status").textContent = G.ready.opp ? `${G.opp.name} is ready!` : "Get ready…";
+    } else if (playing) {
       const mine = G.chess.turn() === G.myColor;
       let text = mine ? (G.chess.in_check() ? "You're in check — your move" : "Your move") : `Waiting for ${G.opp.name}`;
       if (lostAt) text += ` · ${G.opp.name} lost connection — you win if they're not back within a minute`;
@@ -724,18 +722,7 @@
     $("rematch").disabled = G.rematch.me;
     $("rematch").textContent = G.rematch.me ? "Rematch offered" : G.rematch.opp ? `${G.opp.name} wants a rematch — accept` : "Rematch";
     $("newInvite").hidden = playing;
-    const kids = G.quickGroup === "kids";
-    $("chatPresets").hidden = !connected || !G.quickGroup;
-    $("chatForm").hidden = !connected || !G.freeChat || kids;
-    $("chatToggle").hidden = !connected || G.quickGroup !== "teens";
-    $("chatToggle").textContent = G.freeChat ? "⌨️ Turn typing chat off" : "⌨️ Turn on typing chat";
-    $("chatNote").hidden = !G.quickGroup || (G.freeChat && !kids);
-    $("chatNote").textContent = kids ? "Games with players you don't know use quick messages only, to keep everyone safe."
-      : "Typing chat is off. Send a quick message, or turn typing on.";
 
-    $("chat").innerHTML = G.chat.map((c) => `<p><b>${esc(c.from)}:</b> ${esc(c.text)}</p>`).join("")
-      || `<p class="dim">Chat with ${esc(G.opp.name)} here.</p>`;
-    $("chat").scrollTop = $("chat").scrollHeight;
   }
 
   function tick() {
@@ -765,7 +752,7 @@
   // ---------- controls ----------
 
   $("board").addEventListener("click", (e) => {
-    if (!G || G.status !== "playing" || G.chess.turn() !== G.myColor) return;
+    if (!G || G.status !== "playing" || G.chess.turn() !== G.myColor || !bothReady()) return;
     handleBoardClick(e, G.chess, G.myColor, selected, myMove,
       (sq) => { selected = sq; $("board").innerHTML = boardHtml(G.chess, G.myColor, selected); });
   });
@@ -789,32 +776,13 @@
   });
   $("newInvite").addEventListener("click", () => { leave(); show("setup"); });
 
-  $("chatPresets").innerHTML = Object.entries(PRESETS).map(([id, text]) => `<button type="button" data-preset="${id}">${text}</button>`).join("");
-  $("chatPresets").addEventListener("click", (e) => {
-    const b = e.target.closest("[data-preset]");
-    if (!b || !G) return;
-    G.chat.push({ from: profile.name, text: PRESETS[b.dataset.preset] });
-    send({ t: "preset", id: b.dataset.preset });
+  function bothReady() { return !!(G && G.ready.me && G.ready.opp); }
+  $("readyBtn").addEventListener("click", () => {
+    if (!G || G.ready.me) return;
+    G.ready.me = true;
+    send({ t: "ready" });
     renderGame();
   });
-  $("chatToggle").addEventListener("click", () => {
-    if (!G || G.quickGroup !== "teens") return;
-    if (!G.freeChat && !confirm("Turn on typing chat with this player? Never share your real name, where you live, your school or other apps. Use Report and Block if anyone makes you uncomfortable.")) return;
-    G.freeChat = !G.freeChat;
-    renderGame();
-  });
-
-  $("chatForm").addEventListener("submit", (e) => {
-    e.preventDefault();
-    const text = $("chatText").value.trim();
-    if (!text || !G || !G.freeChat || G.quickGroup === "kids") return;
-    $("chatText").value = "";
-    const clean = EloNames.cleanText(text);
-    G.chat.push({ from: profile.name, text: clean });
-    send({ t: "chat", text: clean });
-    renderGame();
-  });
-
   // ---------- report / block (saved on this device) ----------
 
   const BLOCK_KEY = "elo-blocked";
@@ -823,10 +791,9 @@
   function setBlocked(list) { try { localStorage.setItem(BLOCK_KEY, JSON.stringify(list)); } catch {} renderBlockedList(); }
   function blockOpponent() {
     const name = G && G.opp.name;
-    if (!name || !confirm(`Block ${name}? You won't see their chat, and they can't join your invites or invite you.`)) return;
+    if (!name || !confirm(`Block ${name}? They can't join your invites or be matched with you again.`)) return;
     setBlocked([...new Set([...blockedNames(), name])]);
-    G.chat = G.chat.filter((c) => c.from !== name);
-    $("chatText").disabled = true;
+
     renderGame();
     $("status").textContent = `${name} is blocked. Finish or resign this game — you won't be matched with them again.`;
   }
@@ -834,14 +801,14 @@
   $("reportOpp").addEventListener("click", () => {
     const name = G && G.opp.name;
     if (!name) return;
-    const reason = prompt(`Report ${name}. What happened? (rude chat, cheating, bad name…)`);
+    const reason = prompt(`Report ${name}. What happened? (cheating, a bad name, quitting…)`);
     if (reason === null) return;
     // No server here: the report goes privately by email to the support address
     // (no account needed). Reports are never posted anywhere public.
-    const lines = G.chat.filter((c) => c.from === name).slice(-5).map((c) => `${c.from}: ${c.text}`).join("\n");
+
     const cfg = window.ELO_CONFIG || {};
     const subject = `Player report: ${name}`;
-    const text = `Player reported: ${name}\nReason: ${reason || "(none given)"}\nWhere: Play a Friend\nReported by: ${profile.name}\n\nTheir recent chat:\n${lines || "(none)"}\n\nSent from the Elo Ladder app.`;
+    const text = `Player reported: ${name}\nReason: ${reason || "(none given)"}\nWhere: Play a Friend\nReported by: ${profile.name}\n\nSent from the Elo Ladder app.`;
     if (cfg.supportEmail) location.href = `mailto:${cfg.supportEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`;
     if (confirm(`Thanks for reporting ${name}. Block them too?`)) blockOpponent();
   });

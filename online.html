@@ -243,16 +243,12 @@
           <button id="addOpp" hidden>Add friend</button>
           <button id="toLobby" hidden>Back to lobby</button>
         </div>
-        <div class="chat" id="chat"></div>
         <div class="row chat-safety">
           <button type="button" id="reportOpp">🚩 Report</button>
           <button type="button" id="blockOpp">🔇 Block</button>
         </div>
-        <form class="row" id="chatForm">
-          <input type="text" id="chatText" placeholder="Say something…" maxlength="300" autocomplete="off">
-          <button>Send</button>
-        </form>
       </div>
+
     </div>
   </section>
 </main>
@@ -616,7 +612,7 @@
     chess = new Chess();
     if (g.pgn) chess.load_pgn(g.pgn);
     myColor = g.white.name === me.name ? "w" : "b";
-    if (fresh) { selected = null; $("chatText").value = ""; }
+    if (fresh) selected = null;
     show("play");
     renderGame();
   }
@@ -673,9 +669,7 @@
     $("addOpp").dataset.act = "friendRequest";
     $("addOpp").dataset.name = oppName;
 
-    $("chat").innerHTML = view.chat.filter((c) => !(me.blocked || []).includes(c.from)).map((c) => `<p><b class="pname" data-player="${esc(c.from)}">${esc(c.from)}:</b> ${esc(c.text)}</p>`).join("")
-      || `<p class="dim">Chat with your opponent here.</p>`;
-    $("chat").scrollTop = $("chat").scrollHeight;
+
   }
 
   const fmtClock = (ms) => {
@@ -724,7 +718,7 @@
   $("reportOpp").addEventListener("click", async () => {
     const name = oppName();
     if (!name) return;
-    const reason = prompt(`Report ${name} to the admin. What happened? (rude chat, cheating, bad name…)`);
+    const reason = prompt(`Report ${name} to the admin. What happened? (cheating, a bad name, quitting…)`);
     if (reason === null) return;
     try {
       await api("reportPlayer", { name, reason, gameId: view.id });
@@ -733,7 +727,7 @@
   });
   $("blockOpp").addEventListener("click", async () => {
     const name = oppName();
-    if (!name || !confirm(`Block ${name}? You won't see their chat, and they can't match with, challenge or friend you.`)) return;
+    if (!name || !confirm(`Block ${name}? They can't match with, challenge or friend you.`)) return;
     try { await api("block", { name }); } catch (err) { alert(err.message); }
   });
   function renderBlocked() {
@@ -745,13 +739,6 @@
     if (b && confirm(`Unblock ${b.dataset.unblock}?`)) { try { await api("block", { name: b.dataset.unblock, unblock: true }); } catch (err) { alert(err.message); } }
   });
 
-  $("chatForm").addEventListener("submit", (e) => {
-    e.preventDefault();
-    const text = $("chatText").value.trim();
-    if (!text || !view) return;
-    $("chatText").value = "";
-    api("chat", { id: view.id, text }).catch(() => {});
-  });
 
   // ---------- start ----------
 
@@ -873,8 +860,8 @@
         <div><span class="dim">Last network</span>${esc(d.lastIp || "—")}</div>
         <div><span class="dim">Last name change</span>${when(d.nameChangedAt)}</div>
       </div>
-      ${d.currentGame ? `<h3>Current game</h3><p>${esc(d.currentGame.white || "?")} vs ${esc(d.currentGame.black || "(waiting)")} · ${TC_LABEL[d.currentGame.tc]} · ${d.currentGame.moves} moves</p>
-        ${d.currentGame.chat.length ? `<div class="chat" style="height: auto; max-height: 160px">${d.currentGame.chat.map((c) => `<p><b>${esc(c.from)}:</b> ${esc(c.text)}</p>`).join("")}</div>` : ""}` : ""}
+      ${d.currentGame ? `<h3>Current game</h3><p>${esc(d.currentGame.white || "?")} vs ${esc(d.currentGame.black || "(waiting)")} · ${TC_LABEL[d.currentGame.tc]} · ${d.currentGame.moves} moves</p>` : ""}
+
       <h3>Friends (${d.friends.length})</h3>
       <p>${d.friends.map((f) => `<a href="#" data-admin-open="${esc(f.name)}">${esc(f.name)}</a>`).join(", ") || `<span class="dim">None</span>`}
         ${d.requests.length ? `<br><span class="dim">Pending requests from: ${d.requests.map(esc).join(", ")}</span>` : ""}</p>
@@ -886,8 +873,7 @@
           <td class="num">${fmt(h.change || 0)}</td></tr>`).join("")
           || `<tr><td colspan="5" class="empty">No games yet.</td></tr>`}
       </tbody></table></div>
-      <h3>Chat messages</h3>
-      <div class="chat" style="height: auto; max-height: 200px">${d.chatLog.map((c) => `<p><span class="dim">${when(c.at)} → ${esc(c.to)}:</span> ${esc(c.text)}</p>`).join("") || `<p class="dim">No messages.</p>`}</div>
+
       <h3>Admin history</h3>
       <p>${d.sanctionLog.map((s) => `<span class="dim">${when(s.at)}</span> ${esc(s.by)}: <b>${esc(s.action)}</b>${s.reason ? ` — “${esc(s.reason)}”` : ""}${s.from ? ` (${esc(s.from)} → ${esc(s.to)})` : ""}`).join("<br>") || `<span class="dim">Nothing yet.</span>`}</p>`;
   }

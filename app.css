@@ -421,3 +421,7 @@ body.app { background: radial-gradient(1000px 600px at 10% -10%, #24205a 0%, tra
 .chat-presets { flex-wrap: wrap; gap: 6px; }
 .chat-presets button { padding: 6px 10px; font-size: 13px; }
 #chatToggle { margin-top: 6px; font-size: 13px; }
+
+/* Ready up (there is no chat) */
+.ready-box { margin: 10px 0; padding: 12px; border-radius: 12px; background: rgba(46, 204, 113, 0.08); border: 1px solid rgba(46, 204, 113, 0.35); text-align: center; }
+.ready-box button { font-size: 18px; padding: 10px 28px; margin-bottom: 6px; }

@@ -5,6 +5,6 @@
 // (private, and no account needed). Reports are never sent anywhere public, so
 // this must be set before the app is submitted.
 window.ELO_CONFIG = {
-  supportEmail: "",
+  supportEmail: "keyacesoftware@gmail.com",
   supportPage: "https://github.com/kaceiam/elo-ladder/issues",
 };

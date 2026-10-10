@@ -14,6 +14,7 @@ Copy these into App Store Connect (My Apps → Elo Ladder → App Information / 
 - **Age rating**: 4+ (answer "None" to every question)
 - **Privacy policy URL**: https://kaceiam.github.io/elo-ladder/privacy.html
 - **Support URL**: https://github.com/kaceiam/elo-ladder/issues
+- **Support email** (reports and App Review contact): keyacesoftware@gmail.com
 - **Marketing URL**: https://kaceiam.github.io/elo-ladder/
 
 ## App Privacy ("nutrition label")
@@ -61,7 +62,7 @@ Use the six images in `appstore/screenshots/` (1290 × 2796, iPhone 6.7"). Uploa
 ## Review notes (App Review Information → Notes)
 Elo Ladder is a chess app. No login is needed — every feature works right away. The chess engine (Stockfish) runs on the device. "Online Play" connects two players directly with an invite link (open friend invites on two devices to test). The "Online lobby" option only appears when the developer's own game server is reachable, so reviewers won't see it.
 
-User-generated content (Guideline 1.2): the only user content is in-game chat and player names. Chat and names pass a word filter; every game has 🚩 Report (online lobby: goes to the admin queue; Play a Friend: opens a private, pre-filled report email to our support address; reports are never public) and 🔇 Block (hides the player's messages and stops them joining your invites, challenging, friending or being matched with you). Reports are handled within 24 hours.
+User-generated content (Guideline 1.2): the only user content is in-game chat and player names. Chat and names pass a word filter; every game has 🚩 Report (online lobby: goes to the admin queue; Play a Friend: opens a private, pre-filled report email to keyacesoftware@gmail.com; reports are never public) and 🔇 Block (hides the player's messages and stops them joining your invites, challenging, friending or being matched with you). Reports are handled within 24 hours.
 
 ## Licenses
 - Stockfish chess engine: GPL-3.0 — the app's full source code is public at https://github.com/kaceiam/elo-ladder

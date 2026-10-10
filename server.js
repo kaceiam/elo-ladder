@@ -57,7 +57,8 @@ const ADMIN_NAME = process.env.ADMIN_NAME || ""; // empty: no reserved admin nam
 const ADMIN_KEY_FILE = path.join(DATA_DIR, "admin-key.txt");
 let adminKey;
 try { adminKey = fs.readFileSync(ADMIN_KEY_FILE, "utf8").trim(); } catch {}
-if (!adminKey) {
+// Only keep a key when there is a reserved admin name to protect
+if (!adminKey && ADMIN_NAME) {
   adminKey = crypto.randomBytes(9).toString("base64url");
   fs.mkdirSync(DATA_DIR, { recursive: true });
   fs.writeFileSync(ADMIN_KEY_FILE, adminKey + "\n");
@@ -1113,7 +1114,7 @@ http.createServer((req, res) => {
   console.log(`Elo Ladder running:`);
   console.log(`  this computer:  http://localhost:${PORT}`);
   for (const ip of lanAddresses()) console.log(`  same Wi-Fi:      http://${ip}:${PORT}`);
-  console.log(`  admin account:  ${ADMIN_NAME} (key for new devices is in ${path.relative(ROOT, ADMIN_KEY_FILE)})`);
+  console.log(ADMIN_NAME ? `  admin account:  ${ADMIN_NAME} (key for new devices is in ${path.relative(ROOT, ADMIN_KEY_FILE)})` : "  admin account:  none");
 });
 
 // The player's real network address. Headers like X-Forwarded-For can be

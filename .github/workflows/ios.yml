@@ -61,7 +61,9 @@ jobs:
       - name: Prepare the web app
         env:
           LIVE_UPDATES: ${{ inputs.target == 'phone' && '1' || '' }}
-        run: npm run build:web
+        run: |
+          npm run build:web
+          echo "Live-update switch in this build:"; grep -n "const LIVE_UPDATES" www/update.js
 
       - name: Create the iOS project
         run: npx cap add ios --packagemanager SPM

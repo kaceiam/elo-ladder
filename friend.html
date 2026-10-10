@@ -144,6 +144,9 @@
           <button type="button" id="reportOpp">🚩 Report</button>
           <button type="button" id="blockOpp">🔇 Block</button>
         </div>
+        <div class="dim small" id="chatNote" hidden></div>
+        <div class="row chat-presets" id="chatPresets" hidden></div>
+        <button type="button" id="chatToggle" hidden></button>
         <form class="row" id="chatForm">
           <input type="text" id="chatText" placeholder="Say something…" maxlength="300" autocomplete="off">
           <button>Send</button>
@@ -193,6 +196,11 @@
   const saveProfile = () => { try { localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); } catch {} };
 
   let peer = null, conn = null, role = null, inviteCode = null;
+  // Quick matches are with strangers: they get quick messages, and typing chat
+  // only for adults (teens can turn it on; 12-and-under never get it).
+  // Invites (someone you already know) keep typing chat.
+  let quickGroup = null; // age group of the current quick match, null for invites
+  const PRESETS = { hi: "Hi! 👋", gl: "Good luck! 🍀", nm: "Nice move! 👍", wp: "Well played!", gg: "Good game! 🤝", rm: "Rematch?", ty: "Thanks!" };
   let G = null; // current game
   let selected = null, lostAt = null;
 
@@ -303,6 +311,7 @@
       return;
     }
     role = "host";
+    quickGroup = null;
     inviteCode = newCode();
     const tc = $("tc").value, color = $("color").value;
     peer = new Peer(PEER_PREFIX + inviteCode);
@@ -378,6 +387,7 @@
     if (!group) { showSetup(); return; }
     leave();
     qm = { tc, group, slot: 0, started: Date.now(), timer: setInterval(searchTick, 500) };
+    quickGroup = group;
     $("searchTitle").textContent = `Finding a ${TC_LABEL[tc]} opponent (ages ${AGE_GROUPS.find((g) => g.id === group).label})…`;
     $("searchStatus").textContent = "Searching";
     searchTick();
@@ -489,6 +499,7 @@
 
   function joinInvite(code) {
     role = "guest";
+    quickGroup = null;
     inviteCode = code;
     $("joinErr").textContent = "";
     $("joinStatus").textContent = "Connecting to your friend…";
@@ -529,6 +540,7 @@
       chess: new Chess(), clocks: { w: mins * 60_000, b: mins * 60_000 }, turnStart: null,
       status: "playing", result: null, reason: null, change: null,
       drawOffer: null, rematch: { me: false, opp: false }, chat: [],
+      quickGroup, freeChat: !quickGroup || quickGroup === "adults",
     };
     selected = null; lostAt = null;
     $("chatText").value = "";
@@ -591,7 +603,9 @@
         checkPositionEnd();
         break;
       }
-      case "chat": if (!isBlockedName(G.opp.name)) G.chat.push({ from: G.opp.name, text: EloNames.cleanText(String(msg.text).slice(0, 300)) }); break;
+      case "preset": if (PRESETS[msg.id] && !isBlockedName(G.opp.name)) G.chat.push({ from: G.opp.name, text: PRESETS[msg.id] }); break;
+      // Typing chat is dropped unless it's on for this game (never for 12-and-under quick matches)
+      case "chat": if (G.freeChat && G.quickGroup !== "kids" && !isBlockedName(G.opp.name)) G.chat.push({ from: G.opp.name, text: EloNames.cleanText(String(msg.text).slice(0, 300)) }); break;
       case "resign": endGame(G.chess.history().length < 2 ? null : 1, G.chess.history().length < 2 ? "aborted" : "resignation", false); break;
       case "flag": endGame(1, "timeout", false); break;
       case "draw":
@@ -710,7 +724,14 @@
     $("rematch").disabled = G.rematch.me;
     $("rematch").textContent = G.rematch.me ? "Rematch offered" : G.rematch.opp ? `${G.opp.name} wants a rematch — accept` : "Rematch";
     $("newInvite").hidden = playing;
-    $("chatForm").hidden = !connected;
+    const kids = G.quickGroup === "kids";
+    $("chatPresets").hidden = !connected || !G.quickGroup;
+    $("chatForm").hidden = !connected || !G.freeChat || kids;
+    $("chatToggle").hidden = !connected || G.quickGroup !== "teens";
+    $("chatToggle").textContent = G.freeChat ? "⌨️ Turn typing chat off" : "⌨️ Turn on typing chat";
+    $("chatNote").hidden = !G.quickGroup || (G.freeChat && !kids);
+    $("chatNote").textContent = kids ? "Games with players you don't know use quick messages only, to keep everyone safe."
+      : "Typing chat is off. Send a quick message, or turn typing on.";
 
     $("chat").innerHTML = G.chat.map((c) => `<p><b>${esc(c.from)}:</b> ${esc(c.text)}</p>`).join("")
       || `<p class="dim">Chat with ${esc(G.opp.name)} here.</p>`;
@@ -768,10 +789,25 @@
   });
   $("newInvite").addEventListener("click", () => { leave(); show("setup"); });
 
+  $("chatPresets").innerHTML = Object.entries(PRESETS).map(([id, text]) => `<button type="button" data-preset="${id}">${text}</button>`).join("");
+  $("chatPresets").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-preset]");
+    if (!b || !G) return;
+    G.chat.push({ from: profile.name, text: PRESETS[b.dataset.preset] });
+    send({ t: "preset", id: b.dataset.preset });
+    renderGame();
+  });
+  $("chatToggle").addEventListener("click", () => {
+    if (!G || G.quickGroup !== "teens") return;
+    if (!G.freeChat && !confirm("Turn on typing chat with this player? Never share your real name, where you live, your school or other apps. Use Report and Block if anyone makes you uncomfortable.")) return;
+    G.freeChat = !G.freeChat;
+    renderGame();
+  });
+
   $("chatForm").addEventListener("submit", (e) => {
     e.preventDefault();
     const text = $("chatText").value.trim();
-    if (!text || !G) return;
+    if (!text || !G || !G.freeChat || G.quickGroup === "kids") return;
     $("chatText").value = "";
     const clean = EloNames.cleanText(text);
     G.chat.push({ from: profile.name, text: clean });

@@ -11,9 +11,15 @@ Copy these into App Store Connect (My Apps → Elo Ladder → App Information / 
 - **Primary category**: Games → Board
 - **Secondary category**: Education
 - **Price**: Free
-- **Age rating**: answer "None"/"No" to everything except chat: say **Yes** to in-app messaging/chat between users (it has a word filter, Report and Block)
+- **Age rating** (answer honestly; nothing else in the app is mature):
+  - Violence, horror, sexual content, profanity, drugs, alcohol, gambling, contests, medical: **None / No**
+  - Unrestricted web access: **No** · Advertising: **No** · In-app purchases: **No**
+  - **Messaging and chat: Yes.** Typed chat only between friends who invited each other by link, and (opt-in, filtered) between strangers aged 13+ in quick match. Players 12 and under can only send preset messages to strangers.
+  - **User-generated content: Yes** (player names and chat), with a word filter, Report and Block.
+  - Parental controls: **No** · Age assurance: **No** (ages are self-reported)
+  - ⚠️ Check the rating Apple shows before saving. The app has a "12 and under" group, so if Apple's result is **13+ or higher**, stop and tell Kace's dad before submitting.
 - **Privacy policy URL**: https://kaceiam.github.io/elo-ladder/privacy.html
-- **Support URL**: https://github.com/kaceiam/elo-ladder/issues
+- **Support URL**: https://kaceiam.github.io/elo-ladder/support.html
 - **Support email** (reports and App Review contact): keyacesoftware@gmail.com
 - **Marketing URL**: https://kaceiam.github.io/elo-ladder/
 
@@ -33,7 +39,7 @@ RANKED MATCHES
 Play five placement games, then climb Bronze, Silver, Gold, Platinum, Diamond, Master and Grandmaster — with real chess clocks.
 
 SUNDAY CUP — EVERY WEEK
-A 5-round, 32-player tournament every Sunday, with live standings, trophies, and an exclusive Champion gold board for the winner.
+A 5-round tournament against 31 bot rivals every Sunday, with live standings, trophies, and an exclusive Champion gold board for the winner.
 
 280 LESSONS
 Seven training courses with 1,400 exercises you solve right on the board: how the pieces move, checkmate patterns, tactics, 40 openings, middlegames, endgames and a master class. Hints, solutions, and a star for every perfect lesson.
@@ -52,17 +58,17 @@ Free. No account. No ads. No tracking.
 ## Keywords (100 max, comma-separated, no spaces)
 chess,elo,stockfish,puzzles,tactics,openings,endgame,lessons,ranked,tournament,bots,board,checkmate
 
-## What's New (version 1.7.0)
-First release on the App Store: bots, ranked play, Sunday Cup tournaments, 280 lessons, the Elo Test and unlockable boards.
+## What's New (version 1.11.0)
+First release on the App Store: bots, ranked play, quick match by age group, Sunday Cup tournaments, 280 lessons, the Elo Test and unlockable boards. (Apple only shows "What's New" from the second version on.)
 
 ## Screenshots
 Use the six images in `appstore/screenshots/` (1290 × 2796, iPhone 6.7"). Upload them in this order:
 1. Home  2. Playing a bot  3. Training  4. Ranked  5. Board styles  6. Sunday Cup
 
 ## Review notes (App Review Information → Notes)
-Elo Ladder is a chess app. No login is needed — every feature works right away. The chess engine (Stockfish) runs on the device. "Online Play" connects two players directly with an invite link (open friend invites on two devices to test). The "Online lobby" option only appears when the developer's own game server is reachable, so reviewers won't see it.
+Elo Ladder is a chess app. No login is needed: on first launch you pick a name, a skill level and your age, then every feature works. The chess engine (Stockfish) runs on the device. "Online Play" has Quick match (bullet, blitz, rapid and 30/60-minute games against another player who picked the same time control at the same moment) and invite links for playing a friend (open an invite on two devices to test). The "Online lobby" option only appears when the developer's own game server is reachable, so reviewers won't see it. The Sunday Cup is a single-player tournament against bot opponents.
 
-User-generated content (Guideline 1.2): the only user content is in-game chat and player names. Chat and names pass a word filter; every game has 🚩 Report (online lobby: goes to the admin queue; Play a Friend: opens a private, pre-filled report email to keyacesoftware@gmail.com; reports are never public) and 🔇 Block (hides the player's messages and stops them joining your invites, challenging, friending or being matched with you). Reports are handled within 24 hours.
+Child safety and user-generated content (Guideline 1.2): the only user content is player names and in-game chat. Quick match only pairs players in the same self-reported age group (12 and under, 13–17, 18+). In quick matches, players 12 and under can only send preset messages ("Good luck!", "Nice move!", "Good game!"…); typed messages are neither shown nor sent, and a received typed message is dropped. 13–17 quick matches start with presets only and typed chat is opt-in per game. Typed chat is always available between friends who invited each other by link. Names and typed chat pass a word filter; every game has 🚩 Report (opens a private, pre-filled report email to keyacesoftware@gmail.com; reports are never public) and 🔇 Block (hides the player's messages and stops them joining your invites or being matched with you). Reports are handled within 24 hours. Support page: https://kaceiam.github.io/elo-ladder/support.html
 
 ## Licenses
 - Stockfish chess engine: GPL-3.0 — the app's full source code is public at https://github.com/kaceiam/elo-ladder

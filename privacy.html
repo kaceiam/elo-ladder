@@ -47,27 +47,24 @@
     <li>Quick match uses only your age group (12 and under, 13–17, or 18 and over) to pair you with players in the same group. The group is part of the temporary matching code your device uses to find an opponent, and nothing else.</li>
   </ul>
 
-  <h2>Chat safety: filter, report and block</h2>
+  <h2>Chat safety</h2>
   <ul>
-    <li>Chat messages are filtered: swear words and slurs are replaced with stars before anyone sees them.</li>
-    <li>Tap <b>🚩 Report</b> in any game to report a player. In the online lobby the report goes straight to the game's administrator, with the player's recent chat as evidence. In Play a Friend (which has no server) the report opens your email app with a private, pre-filled message to our support address. Reports are never posted publicly.</li>
-    <li>Tap <b>🔇 Block</b> to block a player: you won't see their messages, and they can't join your invites, challenge you, friend you or be matched with you. You can unblock them any time.</li>
-    <li>Reports are reviewed and acted on (warnings, name changes, restrictions or bans) within 24 hours.</li>
+    <li><b>Players 12 and under:</b> in quick matches with people they don't know, chat is limited to a few ready-made messages ("Good luck!", "Nice move!", "Good game!"…). Typed messages can't be sent or received.</li>
+    <li><b>Players 13–17:</b> quick matches start with ready-made messages only; a player can choose to turn on typed chat for that game.</li>
+    <li>Typed chat is always on in games with a friend you invited with a link.</li>
+    <li>Typed messages are filtered: swear words and slurs are replaced with stars before anyone sees them.</li>
+    <li>Tap <b>🚩 Report</b> in any game to report a player. The report opens your email app with a private, pre-filled message to our support address. Reports are never posted publicly.</li>
+    <li>Tap <b>🔇 Block</b> to block a player: you won't see their messages, and they can't join your invites or be matched with you. You can unblock them any time.</li>
+    <li>Reports are read within 24 hours.</li>
   </ul>
 
-  <h2>Children</h2>
-  <p>Elo Ladder is suitable for all ages and doesn't knowingly collect personal information from anyone. Player names are checked to block inappropriate words.</p>
+  <h2>Children and parents</h2>
+  <p>Elo Ladder is made for players of all ages and doesn't collect personal information from anyone. Ages are entered by the player and can't be verified, which is why children's games with strangers use ready-made messages only. Player names are checked to block inappropriate words. Parents can find more on our <a href="support.html">support page</a>.</p>
 
   <h2>Changes and questions</h2>
-  <p>If this policy changes, the new version will be posted on this page. <span id="contact">Questions or requests? Open an issue at <a href="https://github.com/kaceiam/elo-ladder/issues">github.com/kaceiam/elo-ladder/issues</a>.</span></p>
-
+  <p>If this policy changes, the new version will be posted on this page. Questions or requests? Email <a href="mailto:keyacesoftware@gmail.com">keyacesoftware@gmail.com</a> or visit the <a href="support.html">support page</a>.</p>
   <p style="margin-top: 30px"><a class="btn" href="index.html">← Back to Elo Ladder</a></p>
 </main>
-<script src="config.js"></script>
-<script>
-  // Show the support email once it's set in config.js
-  const mail = (window.ELO_CONFIG || {}).supportEmail;
-  if (mail) document.getElementById("contact").innerHTML = `Questions, requests or reports? Email <a href="mailto:${mail}">${mail}</a>.`;
-</script>
+
 </body>
 </html>

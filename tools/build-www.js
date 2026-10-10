@@ -9,9 +9,9 @@ const path = require("path");
 const ROOT = path.join(__dirname, "..");
 const OUT = path.join(ROOT, "www");
 const INCLUDE = [
-  "index.html", "bots.html", "ranked.html", "tournament.html", "friend.html", "training.html", "elotest.html", "online.html", "privacy.html",
+  "index.html", "bots.html", "ranked.html", "tournament.html", "friend.html", "training.html", "elotest.html", "online.html", "privacy.html", "support.html", "licenses.html",
   "app.css", "config.js", "board.js", "bots.js", "elo.js", "match.js", "names.js", "nav.js", "pwa.js", "update.js",
-  "manifest.webmanifest", "version.json", "icons", "vendor", "training",
+  "manifest.webmanifest", "version.json", "icons", "vendor", "training", "licenses",
 ];
 
 fs.rmSync(OUT, { recursive: true, force: true });

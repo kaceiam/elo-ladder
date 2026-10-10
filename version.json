@@ -1,11 +1,11 @@
 {
-  "version": 10,
-  "title": "New player setup and age groups",
+  "version": 11,
+  "title": "Safer quick match chat",
   "notes": [
-    "👋 Everyone sets up their player: pick a name, how good you are (Beginner to Grandmaster) and your age.",
-    "⚡ Quick match now pairs you with players your age: 12 and under, 13–17, or 18 and over.",
-    "🏆 Tournament time controls in quick match: 30 minutes or 1 hour.",
-    "All names are free again: everyone picks a fresh one."
+    "💬 Quick match chat uses quick messages like \"Good luck!\" and \"Good game!\".",
+    "🧒 Players 12 and under can only send quick messages to people they don't know.",
+    "⌨️ Players 13 and up can turn on typed chat for a game. Typed chat is always on with friends you invite.",
+    "🛟 New Support page and About & licenses page (tap your name at the top)."
   ],
   "countdown": 30,
   "date": "2026-10-10"

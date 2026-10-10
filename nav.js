@@ -139,6 +139,7 @@ function showProfile() {
       <div class="profile-trophies"><b>🏆 Sunday Cup trophies</b>
         <div>${stats.trophies.length ? stats.trophies.map((t) => `<span class="trophy" title="Sunday Cup ${t.week}: place ${t.place}">${medal(t.place)} <small>#${t.place} · ${t.week}</small></span>`).join("") : `<span class="dim small">None yet — play the Sunday Cup!</span>`}</div>
       </div>
+      <div class="dim small" style="margin-top: 12px; text-align: center"><a href="support.html">Support</a> · <a href="privacy.html">Privacy</a> · <a href="licenses.html">About &amp; licenses</a></div>
       <button type="button" class="primary" data-close style="margin-top: 14px">Close</button>
     </div>`;
   box.addEventListener("click", (e) => { if (e.target === box || e.target.closest("[data-close]")) box.remove(); });

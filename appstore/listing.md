@@ -11,7 +11,7 @@ Copy these into App Store Connect (My Apps → Elo Ladder → App Information / 
 - **Primary category**: Games → Board
 - **Secondary category**: Education
 - **Price**: Free
-- **Age rating**: 4+ (answer "None" to every question)
+- **Age rating**: answer "None"/"No" to everything except chat: say **Yes** to in-app messaging/chat between users (it has a word filter, Report and Block)
 - **Privacy policy URL**: https://kaceiam.github.io/elo-ladder/privacy.html
 - **Support URL**: https://github.com/kaceiam/elo-ladder/issues
 - **Support email** (reports and App Review contact): keyacesoftware@gmail.com

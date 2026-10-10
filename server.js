@@ -62,10 +62,16 @@ if (!adminKey) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
   fs.writeFileSync(ADMIN_KEY_FILE, adminKey + "\n");
 }
-const isAdminName = (name) => String(name || "").trim().toLowerCase() === ADMIN_NAME.toLowerCase();
-{
-  const acct = Object.values(players).find((p) => isAdminName(p.name));
-  if (acct && !acct.admin) { acct.admin = true; savePlayers(); }
+// More admins: data/admins.json maps each extra admin name to its own secret
+// key, needed to claim that name or sign into it on a new device.
+const ADMINS_FILE = path.join(DATA_DIR, "admins.json");
+let extraAdmins = {};
+try { extraAdmins = JSON.parse(fs.readFileSync(ADMINS_FILE, "utf8")); } catch {}
+const lc = (s) => String(s || "").trim().toLowerCase();
+const isAdminName = (name) => lc(name) === lc(ADMIN_NAME) || Object.keys(extraAdmins).some((n) => lc(n) === lc(name));
+const adminKeyFor = (name) => lc(name) === lc(ADMIN_NAME) ? adminKey : Object.entries(extraAdmins).find(([n]) => lc(n) === lc(name))?.[1];
+for (const acct of Object.values(players)) {
+  if (isAdminName(acct.name) && !acct.admin) { acct.admin = true; savePlayers(); }
 }
 
 // Networks blocked along with a ban
@@ -518,8 +524,10 @@ class HttpError extends Error {
 }
 const fail = (status, message, extra) => { throw new HttpError(status, message, extra); };
 
-const keyMatches = (given) => {
-  const a = Buffer.from(String(given || "")), b = Buffer.from(adminKey);
+const keyMatches = (given, name) => {
+  const key = adminKeyFor(name);
+  if (!key) return false;
+  const a = Buffer.from(String(given || "")), b = Buffer.from(key);
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 };
 const refuseIfSanctioned = (p) => {
@@ -572,7 +580,7 @@ const actions = {
     const existing = findPlayer(name);
     if (existing) {
       // The admin can sign in on a new device with the admin key
-      if (existing.admin && keyMatches(body.adminKey)) {
+      if (existing.admin && keyMatches(body.adminKey, existing.name)) {
         existing.lastIp = ip;
         return { ...publicPlayer(existing), token: existing.token };
       }
@@ -580,7 +588,7 @@ const actions = {
       fail(409, "That name is taken");
     }
     if (bannedIps.has(ip)) fail(403, "New accounts can't be made from this network.");
-    if (isAdminName(name) && !keyMatches(body.adminKey)) fail(401, "That name is reserved. Enter the admin key to claim it.", { needKey: true });
+    if (isAdminName(name) && !keyMatches(body.adminKey, name)) fail(401, "That name is reserved. Enter the admin key to claim it.", { needKey: true });
     if (!isAdminName(name)) await screenName(name);
     if (findPlayer(name)) fail(409, "That name is taken"); // someone grabbed it while the AI was checking
     if (!allowSignup(ip)) fail(429, "Too many new players from your network — try again later");

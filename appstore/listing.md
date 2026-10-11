@@ -15,7 +15,8 @@ Copy these into App Store Connect (My Apps → Elo Ladder → App Information / 
   - Violence, horror, sexual content, profanity, drugs, alcohol, gambling, contests, medical: **None / No**
   - Unrestricted web access: **No** · Advertising: **No** · In-app purchases: **No**
   - **Messaging and chat: No.** There is no chat of any kind; players can only tap "Ready" before a game.
-  - **User-generated content: Yes, player names only** (word-filtered, with Report and Block). Nothing else a player creates is shown to others.
+  - **User-generated content: No.** The only thing a player creates is their (word-filtered) name, shown only to their opponent; there is no broad distribution of user content.
+  - Social media: **No** · Age Suitability URL: https://kaceiam.github.io/elo-ladder/support.html
   - Parental controls: **No** · Age assurance: **No** (ages are self-reported)
   - ⚠️ Check the rating Apple shows before saving. The app has a "12 and under" group, so if Apple's result is **13+ or higher**, stop and tell Kace's dad before submitting.
 - **Privacy policy URL**: https://kaceiam.github.io/elo-ladder/privacy.html

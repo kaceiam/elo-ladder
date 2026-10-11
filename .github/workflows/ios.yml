@@ -74,6 +74,12 @@ jobs:
       - name: Copy the web app into the iOS project
         run: npx cap sync ios
 
+      - name: Check the privacy page packed into the app
+        run: |
+          P=ios/App/App/public/privacy.html
+          echo "Lines mentioning chat messages: $(grep -c 'chat messages' "$P" || true)"
+          shasum -a 256 privacy.html "$P"
+          cmp privacy.html "$P" && echo "Packed privacy page is identical to the repo copy"
       - name: App settings (name, portrait on iPhone, no export paperwork)
         run: |
           PLIST=ios/App/App/Info.plist

@@ -169,19 +169,45 @@ function movesHtml(game) {
 }
 
 // Click-to-move: first click picks one of `color`'s pieces, second click
-// moves it. Calls onMove({from, to, promotion}) for legal moves (always
-// promotes to a queen) and onSelect(square|null) whenever selection changes.
+// moves it. Calls onMove({from, to, promotion}) for legal moves (a pawn
+// reaching the last rank asks which piece it becomes) and onSelect(square|null)
+// whenever selection changes.
 function handleBoardClick(e, game, color, selected, onMove, onSelect) {
   const cell = e.target.closest("[data-sq]");
   if (!cell) return;
   const sq = cell.dataset.sq;
-  if (selected && game.moves({ square: selected, verbose: true }).some((m) => m.to === sq)) {
+  const legal = selected ? game.moves({ square: selected, verbose: true }).filter((m) => m.to === sq) : [];
+  if (legal.length) {
+    const from = selected;
     onSelect(null);
-    onMove({ from: selected, to: sq, promotion: "q" });
+    if (!legal.some((m) => m.promotion)) return onMove({ from, to: sq, promotion: "q" });
+    choosePromotion(color, (piece) => {
+      // The game may have moved on while the picker was open (time out, resign…)
+      if (game.moves({ square: from, verbose: true }).some((m) => m.to === sq && m.promotion === piece)) onMove({ from, to: sq, promotion: piece });
+    });
     return;
   }
   const piece = game.get(sq);
   onSelect(piece && piece.color === color && sq !== selected ? sq : null);
+}
+
+// Pawn promotion: pick queen, rook, bishop or knight. Tapping outside cancels.
+function choosePromotion(color, done) {
+  document.querySelector(".promo-modal")?.remove();
+  const glyph = color === "w" ? { q: "♕", r: "♖", b: "♗", n: "♘" } : { q: "♛", r: "♜", b: "♝", n: "♞" };
+  const name = { q: "Queen", r: "Rook", b: "Bishop", n: "Knight" };
+  const box = document.createElement("div");
+  box.className = "update-modal promo-modal";
+  box.innerHTML = `<div class="update-card promo-card" role="dialog" aria-label="Promote your pawn">
+    <h3 style="margin: 0 0 10px">Promote your pawn to…</h3>
+    <div class="promo-row">${"qrbn".split("").map((p) => `<button type="button" data-promo="${p}"><span>${glyph[p]}</span>${name[p]}</button>`).join("")}</div>
+    <button type="button" class="promo-cancel" data-promo-cancel>Cancel</button></div>`;
+  box.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-promo]");
+    if (b) { box.remove(); done(b.dataset.promo); return; }
+    if (e.target === box || e.target.closest("[data-promo-cancel]")) box.remove();
+  });
+  document.body.append(box);
 }
 
 // ---------- square names toggle + notation help ----------

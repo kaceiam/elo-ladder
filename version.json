@@ -1,10 +1,10 @@
 {
-  "version": 13,
-  "title": "Security fixes",
+  "version": 14,
+  "title": "Choose your promotion",
   "notes": [
-    "🛡 Online games are protected against hacked apps: fake positions, fake ratings, fake names and clock cheats are all ignored.",
-    "⚡ Fixed quick match games sometimes disconnecting right after they started."
+    "♞ When a pawn reaches the last rank, you now choose what it becomes: queen, rook, bishop or knight. Before, it always became a queen.",
+    "Works in every mode: bots, ranked, the Elo Test, the Sunday Cup, online games and training."
   ],
   "countdown": 30,
-  "date": "2026-10-10"
+  "date": "2026-11-02"
 }

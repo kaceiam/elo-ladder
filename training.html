@@ -352,19 +352,11 @@
     else autoPlay();
   });
 
-  // Board clicks, with a choice of piece when a pawn promotes
+  // Board clicks (board.js asks which piece a promoting pawn becomes)
   let pendingPromo = null;
   $("board").addEventListener("click", (e) => {
     if (!game || busy || $("nextBtn").hidden === false || game.turn() !== userColor) return;
-    handleBoardClick(e, game, userColor, selected, (mv) => {
-      const piece = game.get(mv.from);
-      if (piece && piece.type === "p" && (mv.to[1] === "8" || mv.to[1] === "1")) {
-        pendingPromo = mv;
-        $("promoPicker").hidden = false;
-        return;
-      }
-      tryMove(mv);
-    }, (sq) => { selected = sq; draw(); });
+    handleBoardClick(e, game, userColor, selected, (mv) => tryMove(mv), (sq) => { selected = sq; draw(); });
   });
   $("promoPicker").addEventListener("click", (e) => {
     const b = e.target.closest("[data-piece]");
